@@ -1,8 +1,7 @@
-### 对 JSON 数据类型的操作
+## 对 JSON 数据类型的操作
 
-
-```sql 
 ### json & jsonb 操作符
+```sql 
 -- -> 获取 json 数组某个索引的元素，从 0 开始，返回 json
 select '[{"a":"1"},{"a":"2"},{"a":"3"}]'::json -> 2
 -- {"a":"3"}
@@ -30,8 +29,8 @@ select '{"a":{"b":{"c":"d"}}}'::json #> '{a,b}'
 -- 总结： > 返回 json 对象， >> 返回 json 文本
 ```
 
-```sql 
 ### jsonb 操作符
+```sql 
 -- 判断 jsonb 是否包含部分键值，仅判断顶级路径, 返回 boolean 值， 此符号可以 <@ 或者 @> 使用
 select '{"a":{"c":"1"}, "b":"2"}'::jsonb @> '{"b":"2"}' -- true
 select '{"a":{"c":"1"}, "b":"2"}'::jsonb @> '{"c":"1"}' -- false
@@ -63,8 +62,8 @@ select '["a", {"b":1}]'::jsonb #- '{1,b}'
 -- ["a", {}]
 ```
 
-```sql 
 ### json & jsonb 的创建
+```sql 
 -- 将目标转化为 json， 如果没有映射，将按照文本进行转换 
 select to_json('{"a":1, "b":true, "c":"d"}' :: text)
 -- "{\"a\":1, \"b\":true, \"c\":\"d\"}"
@@ -97,8 +96,8 @@ select json_object('{a, b}', '{1,2}')
 -- {"a" : "1", "b" : "2"}
 ```
 
-```sql 
 ### json 的处理和分析
+```sql 
 -- json 数组的长度
 select 	json_array_length('[1,2,3,{"f1":1,"f2":[5,6]},4]')
 -- 5
