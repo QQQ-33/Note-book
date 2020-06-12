@@ -190,3 +190,222 @@ GET /{index}/_search
 }
 
 ```
+
+### API Conventions 接口约定
+```python 
+'''
+多数 API 均支持多个 index 的查询，可以使用：
+index1,index2,index3 这种简单形式
+_all 查询全部 index
+*index* 通配符匹配
+-index  排除匹配
+
+使用 query string 对index结果集进行控制
+ignore_unavailable  true/false 是否忽略不可用的index(不存在或close)
+allow_no_indices    true/false 找不到 index 是否报错
+expand_wildcards    open/close/none/all 通配符，应用到的index类型
+
+'''
+```
+
+### Date math support in index names 日期匹配
+```python 
+'''
+支持索引的日期匹配
+<static_name{date_math_expr{date_format|time_zone}}>
+其中 < > { } : | / + , 为表达式所需的字符，url中会转义
+static_name     静态部分
+date_math_expr  动态匹配表达式，可以进行日期运算
+date_format     匹配的日期格式
+time_zone   is the optional time zone. Defaults to utc.
+
+<logstash-{now/d}> logstash-2024.03.22
+<logstash-{now/M}> logstash-2024.03.01
+<logstash-{now/M{YYYY.MM}}> logstash-2024.03
+<logstash-{now/M-1M{YYYY.MM}}> logstash-2024.02
+<logstash-{now/d{YYYY.MM.dd|+12:00}}> logstash-2024.03.23
+
+要在 表达式中使用 { } 等字符，需要转义
+<elastic\{ON\}-{now/M}> 匹配 elastic{ON}-2024.03.01
+'''
+```
+
+### Common options 通用选项
+```python 
+
+# Pretty Result 结果美化
+'''
+适用于 query string
+?pretty=true    格式话结果 json
+?format=yaml    结果格式化为 yaml
+'''
+
+# Human readable 人类可读转换
+'''
+适用于 query string
+?human=true     统计类的字段的结果适合人类读取，1kb 1h
+?human=false    统计类的字段的结果适合机器读取, 1024 3600000
+'''
+
+# Date Math 日期运算
+'''
+多数可以接收格式化日期值的参数，可以使用日期计算
+比如 gt lt from to
+
+计算表达式以 固定日期 或 now 或 (日期字串 加 ||) 开始，后边拼上计算式
+*注意* || 需要转义  \|\|
++1h: Add one hour
+-1d: Subtract one day
+/d: 取最近的一天
+
+可用的日期
+y       Years
+M       Months
+w       Weeks
+d       Days
+h       Hours
+H       Hours
+m       Minutes
+s       Seconds
+
+举例 now = 2001-01-01 12:00:00
+now+1d = 2001-01-01 13:00:00
+now-1d = 2001-01-01 11:00:00
+now-1h/d = 2001-01-01 00:00:00  四舍五入至 UTC 的 00:00:00
+2001.02.01\|\|+1M/d = 2001-03-01 00:00:00
+'''
+
+# Response Filter 结果集筛选
+# 所有 Api 均支持对结果集进行筛选
+# , 分隔 . 取值
+'''
+GET /_search?q=elasticsearch&filter_path=took,hits.hits._id,hits.hits._score
+{
+  "took" : 3,
+  "hits" : {
+    "hits" : [
+      {
+        "_id" : "0",
+        "_score" : 1.6375021
+      }
+    ]
+  }
+}
+支持通配符
+GET /_cluster/state?filter_path=metadata.indices.*.stat*
+{
+  "metadata" : {
+    "indices" : {
+      "twitter": {"state": "open"}
+    }
+  }
+}
+支持通配符进行不精确匹配
+GET /_cluster/state?filter_path=routing_table.indices.**.state
+{
+  "routing_table": {
+    "indices": {
+      "twitter": {
+        "shards": {
+          "0": [{"state": "STARTED"}, {"state": "UNASSIGNED"}],
+          "1": [{"state": "STARTED"}, {"state": "UNASSIGNED"}],
+          "2": [{"state": "STARTED"}, {"state": "UNASSIGNED"}],
+          "3": [{"state": "STARTED"}, {"state": "UNASSIGNED"}],
+          "4": [{"state": "STARTED"}, {"state": "UNASSIGNED"}]
+        }
+      }
+    }
+  }
+}
+也可以选择排除的字段
+GET /_count?filter_path=-_shards
+{
+  "count" : 5
+}
+包含和不包含可以一起使用
+GET /_cluster/state?filter_path=metadata.indices.*.state,-metadata.indices.logstash-*
+{
+  "metadata" : {
+    "indices" : {
+      "index-1" : {"state" : "open"},
+      "index-2" : {"state" : "open"},
+      "index-3" : {"state" : "open"}
+    }
+  }
+}
+'''
+# Flat Settings 是否按平铺的形式返回
+'''
+默认 false
+GET twitter/_settings?flat_settings=true
+{
+  "twitter" : {
+    "settings": {
+      "index.number_of_replicas": "1",
+      "index.number_of_shards": "1",
+      "index.creation_date": "1474389951325",
+      "index.uuid": "n6gzFZTgS664GUfx0Xrpjw",
+      "index.version.created": ...,
+      "index.provided_name" : "twitter"
+    }
+  }
+}
+'''
+# parameter 参照下划线大小写约定
+# boolean 值需要使用 "true" "false" 
+# 数字可以直传或者"123"
+
+# 对于时间设定的参数，时间单位如下
+# d h m s ms micros nanos
+
+# 对于空间设置的参数，空间单位如下
+# b kb mb gb tb pb
+
+# Distance Units 距离单位， 默认使用 m
+'''
+Mile            mi or miles
+Yard            yd or yards
+Feet            ft or feet
+Inch            in or inch
+Kilometer       km or kilometers
+Meter           m or meters
+Centimeter      cm or centimeters
+Millimeter      mm or millimeters
+Nautical mile   NM, nmi, or nauticalmiles
+'''
+# Fuzziness 模糊匹配
+# 有些查询参数可以使用 fuzziness 进行模糊匹配
+# 使用的算法是：改动几个字符可以达到完全匹配
+# AUTO:[low],[high](默认 AUTO:3,6)
+# 意思是 
+# 0..2  完全匹配
+# 3..5  可以修改1个字符
+# >5    可以修改两个字符
+
+# Enabling stack traces 错误追踪
+# 默认情况 ES 不返回错误的 stack trace
+'''
+POST /twitter/_search?size=surprise_me&error_trace=true
+{
+  "error": {
+    "root_cause": [
+      {
+        "type": "illegal_argument_exception",
+        "reason": "Failed to parse int parameter [size] with value [surprise_me]",
+        "stack_trace": "Failed to parse int parameter [size] with value [surprise_me]]; nested: IllegalArgumentException..."
+      }
+    ],
+    "type": "illegal_argument_exception",
+    "reason": "Failed to parse int parameter [size] with value [surprise_me]",
+    "stack_trace": "java.lang.IllegalArgumentException: Failed to parse int parameter [size] with value [surprise_me]\n    at org.elasticsearch.rest.RestRequest.paramAsInt(RestRequest.java:175)...",
+    "caused_by": {
+      "type": "number_format_exception",
+      "reason": "For input string: \"surprise_me\"",
+      "stack_trace": "java.lang.NumberFormatException: For input string: \"surprise_me\"\n    at java.lang.NumberFormatException.forInputString(NumberFormatException.java:65)..."
+    }
+  },
+  "status": 400
+}
+'''
+```
+
