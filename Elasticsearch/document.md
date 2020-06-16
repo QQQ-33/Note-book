@@ -724,6 +724,8 @@ GET my_index/_search
 #### join
 ```python 
 # 用于在同一个document中创建父/子关系
+# 它会将两个 document 分开处理，但是保持了他们之间的关系
+# parent -> children 为一对多
 PUT my_index
 {
   "mappings": {
@@ -740,7 +742,7 @@ PUT my_index
   }
 }
 # 创建 document 时，对于 join 类型的字段，需要指明保存的是 parent 还是 child
-PUT my_index/_doc/1?refresh
+PUT my_index/_doc/1?refresh # 注意这里指定了 document 的id，也就是parent的id，并且通过 refresh 强制刷新了 index
 {
   "text": "This is a question",
   "my_join_field": { # name 属性必须指定
@@ -753,14 +755,136 @@ PUT my_index/_doc/3?routing=1&refresh # 必须指定 routing，因为父子必�
   "text": "This is an answer",
   "my_join_field": { # name 属性必须指定
     "name": "answer", 
-    "parent": "1" # 指定父id
+    "parent": "1" # 指定父 document 的 id
+  }
+}
+# ES 中的数据应尽量去规范化。
+# join 类型会带来额外的开销，除非数据包含一个 one to many 的关系，尽量不要使用它。
+# 每个 index 中只允许一个 join 字段。
+# parent/child document 必须在同一个 shard 上。也就是 get/update/delete 的时候需要指定同一个 routing。
+# 只能有一个 parent， 但可以有多个 child
+```
+#### Meta-Fields
+```python 
+# 元信息。每个 document 都包含自己的元信息。
+#######
+_field_names 用于索引所有非空的字段。它被用于 exists 查询，搜索所有具有非空的特定字段的 document
+_field_names 仅用于 disabled doc_value 和 norms 的字段，对于 enabled doc_value 和 norms 的字段， exists 查询依然可用，但是将不会通过 _field_names 去查找。
+除非必要，否则不要禁用 _field_names 
+PUT tweets
+{
+  "mappings": {
+    "_doc": {
+      "_field_names": {
+        "enabled": false # 禁用 _field_names
+      }
+    }
+  }
+}
+#######
+_ignored 用于保存所有由于格式错误且开启了 ignore_malformed 的字段。
+#######
+_id 每个 document 都包含一个 _id ，用于 query sort
+#######
+_index 在跨多个 index 的查询中，可以用来进行对 index 的筛选。
+_index 可以用于多种查询：
+GET index_1,index_2/_search
+{
+  "query": {
+    "terms": {
+      "_index": ["index_1", "index_2"] # 查询
+    }
+  },
+  "aggs": {
+    "indices": {
+      "terms": {
+        "field": "_index", # 相同index进行聚合
+        "size": 10
+      }
+    }
+  },
+  "sort": [
+    {
+      "_index": { # 使用 _index 进行排序
+        "order": "asc"
+      }
+    }
+  ],
+  "script_fields": {
+    "index_name": {
+      "script": {
+        "lang": "painless",
+        "source": "doc['_index']" # 获取 _index 值
+      }
+    }
+  }
+}
+#######
+_routing 字段用于指定路由到哪个shard
+指定的shard的算法：
+  shard_num = hash(_routing) % num_primary_shards
+默认的 routing 是 document 的id，当然在创建 document 时可以指定 routing
+PUT my_index/_doc/1?routing=user1&refresh=true 
+{ # 这里 user1 被指定为 routing
+  "title": "This is a document"
+}
+# 查询的时候可以指定 routing
+GET my_index/_doc/1?routing=user1 
+GET my_index/_search
+{
+  "query": {
+    "terms": {
+      "_routing": [ "user1" ] 
+    }
+  }
+}
+# 使用带有 routing 的查询，可以减少查询时影响的shard。
+# 对于使用 routing 的的文档，增删改查时都需要指定 routing，如果忘记，那么这个文档会被在多个shards 上进行索引。可以设定 _routing 为必需的。
+PUT my_index2
+{
+  "mappings": {
+    "_doc": {
+      "_routing": {
+        "required": true # 必须指定 routing
+      }
+    }
+  }
+}
+# 使用 routing 进行索引时，document 的id不保证唯一性，不同的shard上可能存在相同id的document，所以需要用户自己保证id的唯一性。
+# 通过设置 index.routing_partition_size 可以将相同 routing 的document传入不同的shard，这可以减少数据倾斜，降低搜索的影响。
+# 当使用 index.routing_partition_size 时，routing到的shard数公式变为：
+shard_num = (hash(_routing) + hash(_id) % routing_partition_size) % num_primary_shards
+# 可以看到，将 id 作为了计算参数
+# 大于 1 ，小于分片数
+#  1 < index.routing_partition_size < index.number_of_shards
+
+#######
+_source 这个字段保存了 document 的原始值，禁用 _source 字段会使很多功能不可用。
+如果 硬盘资源确实紧张，可以考虑先增加  compression level 。
+可以指定哪些字段不保存，也就是从 _source 中移除，但是依然可以查询
+PUT logs
+{
+  "mappings": {
+    "_doc": {
+      "_source": {
+        "includes": [
+          "*.count", # 字段支持 通配符
+          "meta.*"
+        ],
+        "excludes": [
+          "meta.description",
+          "meta.other.*"
+        ]
+      }
+    }
   }
 }
 ```
+
+
 **所有 CRUD 操作仅针对单 index**
 #### Single document Apis
 ```python 
-
 
 ```
 
