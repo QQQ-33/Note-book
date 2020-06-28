@@ -442,3 +442,300 @@ GET /_search
     }
 }
 ```
+
+## Compound queries 复合查询
+复合查询可以包装其他查询，组合各个查询的结果分数，更改他们的行为，切换他们的query context到filter context(他们对查询的行为表现不同)
+```python 
+## constant score query
+# 包装一个 filter query，对每个结果返回一个固定等于 boost 的分数
+GET /_search
+{
+    "query": {
+        "constant_score" : {
+            "filter" : { # filter context
+                "term" : { "user" : "kimchy"}
+            },
+            "boost" : 1.2 # 可以指定 boost 的值，默认 1.0
+        }
+    }
+}
+
+## bool query
+# 将其他查询boolean结合起来，对应 Lucene 的 BooleanQuery。它创建一个或多个boolean子句，每个子句都有一个类型：
+must    匹配到的文档必须满足全部条件，且有助于得分
+filter  匹配到的文档必须满足全部条件，但各个查询的score将被忽略，且运行在filter context下
+should  匹配的文档应当满足条件，如果 bool query在query context中，且有 must 或者 filter 查询，那么匹配的文档可以不满足should中的任何条件，此时should的条件只会影响score。如果 bool 查询在 filter context中，并且没有must或者filter查询，那么匹配的文档至少要满足should 的一个条件，最少满足几个条件可以通过参数 minimum_should_match 来指定
+must_not    匹配的文档不应满足任何一个条件
+POST _search
+{
+  "query": {
+    "bool" : {
+      "must" : {
+        "term" : { "user" : "kimchy" }
+      },
+      "filter": {
+        "term" : { "tag" : "tech" }
+      },
+      "must_not" : {
+        "range" : {
+          "age" : { "gte" : 10, "lte" : 20 }
+        }
+      },
+      "should" : [
+        { "term" : { "tag" : "wow" } },
+        { "term" : { "tag" : "elasticsearch" } }
+      ],
+      "minimum_should_match" : 1,
+      "boost" : 1.0
+    }
+  }
+}
+
+## Dis Max query
+# 最佳匹配查询，当要查询的内容存在于文档的多个字段时，根据最匹配的字段的分数作为返回。
+GET /_search
+{
+    "query": {
+        "dis_max" : {
+            "tie_breaker" : 0.7,# 同一个 term 出现在不同的字段，比出现在同一个字段影响更大
+            "boost" : 1.2,
+            "queries" : [
+                {
+                    "term" : { "age" : 34 }
+                },
+                {
+                    "term" : { "age" : 35 }
+                }
+            ]
+        }
+    }
+}
+
+## Function Score Query
+# function_score 允许通过查询来修改检索文档的分数，适用于分数计算开销很大时候，可以将分数计算用于过滤之后的文档集。一个 function_score 必须要有一个 query 且有一个或多个 functions，用来为每个document重新计算分数
+GET /_search
+{
+    "query": {
+        "function_score": {
+          "query": { "match_all": {} },# 不写等同于match_all
+          "boost": "5", 
+          "functions": [
+              {
+                  "filter": { "match": { "test": "bar" } },
+                  "random_score": {}, # 打分模式
+                  "weight": 23 # 权重
+              },
+              {
+                  "filter": { "match": { "test": "cat" } },
+                  "weight": 42
+              }
+          ],
+          "max_boost": 42,
+          "score_mode": "max",# 计算函数，有几个可选的计算方法
+          "boost_mode": "multiply",
+          "min_score" : 42 
+        }
+    }
+}
+# 首先，每个document根据function确定的算法算出score，然后 score_mode 指定了这些分数如何进行汇总。
+# score_mode 分数计算方式(如何将多个functions的结果合成一个)
+multiply sum avg first max min
+# 新计算出来的分数于原有的query score进行合并
+# boost_mode 分数合并方式(functions的最终结果与原query的分数的结合方式)
+multiply replace sum avg max min
+# 最终结果可以用评分进行筛选
+min_score 
+# 集中 function_score
+script_score 
+GET /_search
+{
+    "query": {
+        "function_score": {
+            "query": {
+                "match": { "message": "elasticsearch" }
+            },
+            "script_score" : {
+                "script" : {
+                  "source": "Math.log(2 + doc['likes'].value)"
+                }
+            }
+        }
+    }
+}
+weight 权重值，用来与得分相乘
+random_score 随机产生 0-1 之间，均匀分布的分数，不可重复，如果想要重复，可以适用 seed 和field字段来影响随机数的生成
+GET /_search
+{
+    "query": {
+        "function_score": {
+            "random_score": {
+                "seed": 10,
+                "field": "_seq_no"
+            }
+        }
+    }
+}
+field_value_factor 使用文档中的字段来影响分数，类似 script，多个字段只应用第一个
+GET /_search
+{
+    "query": {
+        "function_score": {
+            "field_value_factor": {# sqrt(1.2 * doc['likes'].value)
+                "field": "likes",
+                "factor": 1.2,
+                "modifier": "sqrt",
+                "missing": 1
+            }
+        }
+    }
+}
+decay  衰减函数，使用用户给定的原点到文档的数值类型字段(date,number,get_point等)，计算分数，必须指定 origin , scale
+
+"DECAY_FUNCTION": { # linear, exp, gauss 三选一
+    "FIELD_NAME": { # 函数名，随便起
+          "origin": "11, 12",
+          "scale": "2km", # 步长
+          "offset": "0km", # 计算的初始值
+          "decay": 0.33 # 每次衰减多少，默认 0.5
+    }
+}
+GET /_search
+{
+    "query": {
+        "function_score": {
+            "gauss": {
+                "date": {
+                      "origin": "2013-09-17", # 不同类型的field需要给定不同类型的原点
+                      "scale": "10d",
+                      "offset": "5d", 
+                      "decay" : 0.5 
+                }
+            }
+        }
+    }
+}
+```
+
+### GeoShape Query
+使用相同的网格坐标系对给定的 GEO shape和文档中的 GEO shape进行比较。
+这个形状可以临时指定，也可以使用预先保存的形状
+```python 
+## Inline Shape Definition
+GET /example/_search
+{ # 查询的时候临时指定一个 shape
+    "query":{
+        "bool": {
+            "must": {
+                "match_all": {}
+            },
+            "filter": {
+                "geo_shape": {
+                    "location": {
+                        "shape": {
+                            "type": "envelope",
+                            "coordinates" : [[13.0, 53.0], [14.0, 52.0]]
+                        },
+                        "relation": "within"
+                    }
+                }
+            }
+        }
+    }
+}
+
+## Pre-Indexed Shape
+# 使用预先创建的 shape
+GET /example/_search
+{
+    "query": {
+        "bool": {
+            "filter": {
+                "geo_shape": {
+                    "location": {
+                        "indexed_shape": { # 从哪里获取形状
+                            "index": "shapes",
+                            "type": "_doc",
+                            "id": "deu",
+                            "path": "location"
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+## Geo Bounding Box Query
+# 基于一个矩形盒子边界对文档进行过滤
+GET /_search
+{
+    "query": {
+        "bool" : {
+            "must" : {
+                "match_all" : {}
+            },
+            "filter" : {
+                "geo_bounding_box" : {
+                    "pin.location" : { # 想要过滤的字段
+                        "top_left" : { # 左上角
+                            "lat" : 40.73,
+                            "lon" : -74.1
+                        },
+                        "bottom_right" : { # 右下角
+                            "lat" : 40.01,
+                            "lon" : -71.12
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+## Geo Distance Query
+# 基于到某个坐标点一定距离对文档进行过滤
+# 例：查询某座标周围5km内的其他坐标
+GET /my_locations/_search
+{
+    "query": {
+        "bool" : {
+            "must" : {
+                "match_all" : {}
+            },
+            "filter" : {
+                "geo_distance" : {
+                    "distance" : "200km", # 注意距离单位
+                    "pin.location" : { # 过滤的字段
+                        "lat" : 40,
+                        "lon" : -70
+                    }
+                }
+            }
+        }
+    }
+}
+
+## Geo Polygon Query
+# 基于坐标围成的多边形进行过滤，返回落在多边形内的文档
+GET /_search
+{
+    "query": {
+        "bool" : {
+            "must" : {
+                "match_all" : {}
+            },
+            "filter" : {
+                "geo_polygon" : {
+                    "person.location" : {
+                        "points" : [
+                            {"lat" : 40, "lon" : -70},
+                            {"lat" : 30, "lon" : -80},
+                            {"lat" : 20, "lon" : -90}
+                        ]
+                    }
+                }
+            }
+        }
+    }
+}
+```
