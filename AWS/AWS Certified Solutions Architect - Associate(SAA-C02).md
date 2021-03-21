@@ -13,7 +13,7 @@ https://zhenye-na.github.io/aws-certs-cheatsheet
 ### Edge Locations
 > Edge Locations are endpoints for AWS which are used for caching content. Typically, this consists of CloudFront, Amazon’s Content Delivery Network.
 
-![region](file:/C:/Users/qk965/Desktop/Tom/AWS/assert/region-az-edgelocation.png)
+![region](./assert/region-az-edgelocation.png)
 
 ### Exam Tips
 1. A **Region** is a physical location in the world, which consists of two or more Availability Zones.
@@ -59,7 +59,7 @@ GetSessionToken
 - Temporary credentials can be valid between 15 minutes to 1 hour
 > 创建 IAM role并设置 role 的权限， 设置谁能通过 STS 获取 role，通过STS 相关 API 获取 role， 每个 STS 凭证可以保持最多 1 小时就要刷新
 
-![sts](file:/C:/Users/qk965/Desktop/Tom/AWS/assert/sts-assumerole.png)
+![sts](./assert/sts-assumerole.png)
 
 ### Directory Services
 - AWS Managed Microsoft AD
@@ -82,7 +82,7 @@ GetSessionToken
 - API is available to automate AWS account creation
 
 **Organization Units (OU)**
-![OU](file:/C:/Users/qk965/Desktop/Tom/AWS/assert/AWS_Organizations-1024x467.png)
+![OU](./assert/AWS_Organizations-1024x467.png)
 ### Service Control Policies (SCP)
 - SCP contains Allowlist or denylist IAM actions and can be applied at the Root, OU, or Account level
 - SCP is applied to all the Users and Roles of the Account, including Root
@@ -133,7 +133,7 @@ As soon as there is an explicit deny, the result will be denied
 - Centralized permission management
 - Centralized auditing with CloudTrail
 ### SSO vs AssumeRoleWithSAML
-![OU](file:/C:/Users/qk965/Desktop/Tom/AWS/assert/sso-assumerolewithsaml.png)
+![OU](./assert/sso-assumerolewithsaml.png)
 
 # Elastic Compute Cloud (EC2)
 Amazon Elastic Compute Cloud is a web service that provides resizable compute capacity in the cloud.
@@ -193,7 +193,7 @@ Security Group acts as the role like:
 - Inbound/Outbound Network
 
 Referencing other Security Groups
-![SG](file:/C:/Users/qk965/Desktop/Tom/AWS/assert/sg-referencing.png)
+![SG](./assert/sg-referencing.png)
 
 ### private & public IP
 > 默认 EC2会有一个 private ip (ipv4)，如果想通过 internet访问EC2则需要一个 public IP<br>
@@ -219,3 +219,181 @@ https://www.ec2instances.info
 > G GPU 优化，适合ML或者图形工作<br>
 > burstable 使用 CPU 积分在某些运算量激增的时间爆发大量性能，其余时间计算能力维持在基准线之下<br>
 > unlimited 不限制爆发计算的时间，但是需要额外付费
+
+### AMI
+an image to use to create our instances
+> AMI 可以共享给其他 account<br>
+> 共享之后你依然是 AMI 的 owner<br>
+> 要copy 一个AMI 那么这个 AMI 所有者的账号必须给你这个AMI保存的 EBS或者 S3 的read 权限<br>
+> 不能 copy 加密的 AMI，除非加密的 key 和 snapshot 也共享给你，你可以用你自己的 key 重新加密 snapshot 然后做成新的 AMI<br>
+> 不能 copy 使用了计费代码的 AMI， 你可以先 lanuch 一个 EC2，然后用这个 EC2 做一个 AMI<br>
+
+### EC2 Placement Groups
+安置策略，如何放置 EC2 实例
+> - Cluster 集群式部署，实例都在一个机架一个AZ，具有很低的延迟，但是风险很高，一个机架 fail 所有instance全部宕机
+> - Spread 分布式部署，实例分布在不同AZ，分散了风险，适合要求高可用的项目，每个 Group 做多支持 7个 instance
+> - Partition 分区部署，类似分布式部署，在分布式的基础上按照机架进行分区，相同分区的instance在同一个机架上，适合 Hadoop，Kafka 等要求高可用的分布式系统，同一个 AZ 可达100 instance， 一个Group最多支持7个Partition
+
+1. A clustered placement group cannot span multiple AZs, while a spread placement and a partitioned group can
+2. The name you specify for a placement group must be unique within your AWS account
+3. Only certain types of instances can be launched in a placement group, these types contain Compute Optimized, GPU, Memory Optimized, Storage Optimized, etc...
+4. AWS recommend homogeneous instances within clustered placement groups
+5. You cannot merge placement groups
+6. You cannot move an existing instance into a placement group. You can create an AMI from your existing instance, and then launch a new instance from the AMI into a placement group
+
+### Elastic Network Interfaces (ENI)
+VPC中的一块虚拟网卡
+> 创建EC2时默认带一个 primary ENI， 可以创建其他 ENI 并 attach到 EC2
+> 每个ENI可以包含如下属性：
+> 1. 一个 private IP
+> 2. 一个 EIP
+> 3. 若干个 SG
+> 4. 一个 MAC 地址
+> ENI 需要绑定一个AZ
+
+### Hibernate EC2
+![Hibernate](./assert/hibernation-flow.png)
+> Stop 时使保存EC2 的运行状态(类似休眠)，这些state写入EBS的文件，ESB卷必须是加密的，且有足够的空间保存EC2 State
+
+使用的场景：
+- 长时间运行的流程
+- 需要很长时间初始化
+- 需要保存内存状态
+
+### High Availability and Scalability - ELB & ASG
+- 垂直扩展 scale up and scale down
+- 水平扩展 scale in and scale out
+
+**Horizontal Scalability**
+- increase the number of instances/systems, distributed system
+
+**Vertical Scalability**
+- increase the size of the instance, like from t2.micro to t2.large, etc…
+
+**HA (High Availability)**
+1. HA usually goes hand-in-hand with Horizontal Scalability
+2. HA means running your application/system in at least 2 data centers, to be specific, 2 AZs
+3. HA can be both active or passive
+    - active: Horizontal Scalability
+    - passive: RDS Multi-AZ
+
+There are two methods of Horizontal Scaling:
+- Auto Scaling Group - ASG
+- Load Balancer
+
+### Load Balancing (Elastic Load Balancer - ELB)
+Load Balancers are servers that forward internet traffic to multiple servers (EC2) downstream
+
+But, why would we use a load balancer, anyway?
+1. Spread load across multiple downstream instances
+2. Expose a single point of access (DNS) to your application
+3. Seamlessly handle failures of downstream instances, through health checks
+4. Do regular health checks to your instances
+5. Provide SSL Termination (HTTPS) for your website
+6. Enforce stickiness with cookies
+7. HA across AZs
+8. Separate public traffic from private traffic
+> 1. 分流
+> 2. 对外暴露一个 DNS
+> 3. 故障引流
+> 4. 周期性的故障检查
+> 5. 提供 HTTPS 访问
+> 6. 增强 cookie 粘性
+> 7. 跨AZ的HA
+> 8. 分离公共和私有流量
+
+There are three types of Load Balancers on AWS
+
+- Application Load Balancer (ALB) 7层的层面
+    - HTTP, HTTPS, WebSocket
+    - supports SSL
+- Network Load Balancer (NLB) 4层的层面
+    - TCP, TLS (secure TCP) & UDP
+    - supports SSL
+- Classic Load Balancer (CLB)
+    - HTTP, HTTPS, TCP
+    - DO NOT support SSL
+
+
+**Classic Load Balancer (CLB)**
+
+This is just legacy Load Balancers
+
+**Network Load Balancer (NLB)**
+
+It balances TCP (layer 4) traffic
+
+> 转发 TCP/UDP 流量
+
+Forward TCP & UDP traffic to your instances. Network Load Balancer can handle millions of requests per second while maintaining ultra-low latencies, ~100ms, where 400ms for ALB
+
+> 每秒处理数百万的请求，延迟低至 100ms，ALB需要 400ms
+
+NLB has one static IP per AZ and supports assigning Elastic IP
+
+> NLB 在每个 AZ 有一个静态 IP，支持挂载 EIP
+
+**Application Load Balancer (ALB)**
+
+It balances HTTP / HTTPS traffic, you can also create
+> 转发 HTTP/HTTPS 流量 (layer 7)
+- advanced request routing
+- sending specific requests to specific web servers
+
+> 可以通过设置 rule 来指定请求转发至下游的哪个 target Group<br>
+> 比如根据请求的路径转发流量
+
+**Target Groups**
+> Each target group is used to route requests to one or more registered targets.
+
+where targets can be:
+
+- EC2 Instances (can be managed by an ASG) - HTTP
+- ECS tasks (Elastic Container Service) - HTTP
+- Lambda functions - HTTP request if translated into a JSON event
+- IP Address - must be private IPs
+
+ALB can also route to multiple target groups, also, Health checks are at the target group level
+> ALB 可以转发流量至多个 targetGroup， healthCheck 是 targetGroup 级别的
+
+it has a fixed hostname, (xxx.<region>.elb.amazonaws.com, etc..)
+> ALB 有一个域名
+
+the application servers don't see the IP of the client directly, if you wanna see, then:
+the true IP of the client is inserted in the header X-Forwarded-For
+we can also get the Port (X-Forwarded-Port) and proto (X-Forwarded-Proto)
+> 应用端不能直接获取客户端的 IP，客户端的IP放在请求的 header 的 (X-Forwarded-For) 以及 (X-Forwarded-Proto) 中
+
+**Sticky Sessions**
+
+Sticky Session allows you to bind a user’s session to a specific EC2 Instance. This ensures that all requests from the user during the session are sent to the same instance
+
+you can enable the “sticky session” for Application Load Balancer, but the traffic will be sent at the “Target Group” level, rather than Individual EC2 Instance
+> 粘性 session 将 client 的流量导向同一个 targetGroup。CLB和ALB都支持，对于 ALB 需要在 targetGroup 开启 sticky session，并设置持续时间，它是利用 cookie 来实现的。
+
+**Cross-zone Load Balancing**
+
+- With Cross Zone Load Balancing each load balancer instance distributes evenly across all registered instances in all AZ
+- Otherwise, each load balancer node distributes requests evenly across the registered instances in its AZ only
+
+> 有了跨AZ的 load Balance， 每个 balancer 将转发流量到分布在每个AZ的 EC2 实例<br>
+> 不使用跨AZ的 LB， 每个 balancer 将转发流量到当前AZ的 instance
+
+Cross-Zone in 3 types of Load Balancers
+
+- Application Load Balancer
+  - Always on (cannot be disabled)
+  - No charges for inter AZ data
+- Network Load Balancer
+  - Disabled by default
+  - You pay charges for inter AZ data is enabled
+- Classic Load Balancer
+  - Disabled by default
+  - No charges for inter AZ data is enabled
+
+**Elastic Load Balancer - SSL Certificates**
+> 要使用安全的链接 SSL/TSL 需要在LB上添加 HTTPS/TSL Listener，同时指定一个 CA证书<br>
+> CLB 不能同时使用多个证书<br>
+> ALB 和 NLB 可以为每个 targetGroup指定一个证书，他们使用 SNI 技术来区分转发流量时使用哪个证书加密。
+
+
