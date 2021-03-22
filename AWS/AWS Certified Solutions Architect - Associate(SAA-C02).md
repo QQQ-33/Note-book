@@ -396,4 +396,113 @@ Cross-Zone in 3 types of Load Balancers
 > CLB 不能同时使用多个证书<br>
 > ALB 和 NLB 可以为每个 targetGroup指定一个证书，他们使用 SNI 技术来区分转发流量时使用哪个证书加密。
 
+### Auto Scaling Group (ASG)
+the goal for an ASG is to:
 
+1. Scale in or scale out to match an increased load or decreased load
+2. Ensure minimum / maximum number of running instances
+3. automatically register new instances to a load balancer
+
+> 1. 为了应对负载的增加/减少，而水平扩展/缩减
+> 2. 确保运行的实例数在 min/max 之间
+> 3. 自动将新 lanuch 的实例注册到 LB
+
+![asg](./assert/asg.png)
+
+**Scaling Policies**
+- Target Tracking Scaling
+    - Most simple and easy to set-up
+    - Example I want the average ASG CPU to stay at around 40%
+- Simple / Step Scaling
+    - When some metrics is triggered, do something
+- Scheduled Actions
+    - eg. increase the min capacity to 10 at 5 pm.
+
+### Elastic Block Store (EBS) EBS
+> - 类似一个 USB，可以快速的 attach 给一个实例，
+> - 只能在同AZ内相互传递，不能跨AZ
+> - 需要为所有容量付费
+> - 4种型号：
+>   - GP2(SSD): 普通的SSD，兼顾价格和性能，适合多样性的工作，100-3000 IOPS，最高 16000IOPS， 1GB-16TB
+>   - IO1(SSD): 高性能SSD，适合重要的任务，低延迟，高吞吐量，100 - 32000 IOPS，适合大型数据库，4GB-16TB
+>   - ST1(HDD): 便宜的HDD，为了频繁访问加强过的HDD，适合想用低价格获取高速读取性能，适合大数据量，数据仓库，日志处理,500GB-16TB，最大500IOPS，最大500MB/s的吞吐量，
+>   - SC1(HDD): 最便宜的HDD，适合不经常访问的数据，最大250MB/s的吞吐量，
+> - 共同特征是 Size(容量) Throughput(吞吐量，每秒读写数据量) I/OPS(I/O pre Sec，每秒访问次数)
+> - 只有SSD可以作为 EC2 的 boot volumes
+
+**EBS Snapshots**
+> - 只能做增量复制
+> - Snapshots 保存在S3上，但是我们看不见
+> - 可以不在 detach volume时做Snapshot，但是推荐先 detach
+> - 最多 100000 个Snapshots
+> - 可以跨AZ复制，可以用于制作AMI
+> - EBS从 Snapshots中恢复数据有个预热的过程
+> - Snapshots可以被Amazon Data Lifecycle Manager自动使用(自动备份)
+
+**Encryption**
+> 加密EBS
+> - EBS 内保存的数据是加密的
+> - 数据的访问过程也是加密的
+> - 相关的 Snapshots 也是加密的
+> - 加密/解密的过程我们无需做任何操作
+> - 加密会有一个较小的延迟
+> - 使用KMS AES-256 加密
+> - copy Snapshots 时可以选择加密
+> - 加密的 Snapshots 的 volumns 也是加密的
+
+1. Volumes exist on EBS, think of EBS as Virtual Hard Disk
+2. Snapshots are on S3, think of Snapshot as photo of disk
+3. Snapshots are the point in time copies of volumes
+4. EBS Snapshots are incremental, only the blocks that have changed since your last snapshot are moved to S3
+5. To create a snapshot for Amazon EBS Volumes that serve as root devices, you should stop the instance before taking the snapshot
+6. You can create AMIs from Volumes and Snapshots
+7. You can change EBS Volume sizes on the fly, including changing the size and storage type
+8. Volume will ALWAYS be in the same AZ as the EC2 Instance, BUT you can copy snapshots across AZ or Region
+9. EBS Backup will utilize IO so you should not enable it while handling a lot of traffic
+10. Recommend - detach the EBS volume to do the backup, but not a must
+11. EBS volumes restored by snapshots need to be pre-warmed (using fio or dd command to read the entire volume)
+12. snapshots can be automated using "Amazon Data Lifecycle Manager"
+
+**Instance Store**
+Local EC2 Instance Store is a physical disk attached to the physical server where your EC2 is
+
+it has very high IOPS, but the size of it cannot be increased and the data will be lost if hardware fails to happen
+> Instance Store 是挂载在EC2上的实体硬盘，具有非常高的IOPS，但是不能增加容量，并且重启EC2时，数据会丢失。<br>
+> 只有某些机型具有 Instance Store
+
+**EBS RAID**
+EBS is replicated within an AZ so it is already redundant storage. But if you want to increase the IOPS more or you want to mirror your EBS volumes, then you need to mount volumes in parallel in RAID settings. (RAID is possible as long as your OS supports it)
+> EBS 在同AZ中默认时冗余存在的，但如果想增加 IOPS，那么需要在RAID中设置并行挂载(如果EC2的系统支持的话)
+
+Normal RAID options:
+
+- RAID 0
+- RAID 1
+- RAID 5 - not recommended for EBS
+- RAID 6 - not recommended for EBS
+
+RAID 0 - increasing performance
+- Combining 2 or more volumes and getting the total disk space and I/O
+- But one disk fails, then all the data is failed
+
+Use cases:
+    - application needs a lot of IOPS and doesn’t need fault-tolerance
+    - a database that has replication already built-in
+Using this, we can have a very big disk with a lot of IOPSCombining 2 or more volumes and getting the total disk space and I/O
+But one disk fails, then all the data is failed
+> 将多个EBS卷合并为一个，提供更高的吞吐，但是提高了数据丢失的风险，一旦一个EBS失效，那么所有EBS将全部失效，数据将全部丢失。
+
+RAID 1 - increase fault tolerance
+
+RAID 1 is to mirror a volume to another, which means if one disk fails, then our logical volume is still working (since there is our mirroring one)
+
+Use case:
+    - application that needs to increase volume fault tolerance
+    - application that needs service disks
+> 增加容错性，不会改变总容量和总吞吐量，会增加一点延迟
+
+### EFS (Elastic File System)
+![asg](./assert/overview-flow.png)
+EFS is a managed NFS (network file system) that can be mounted on many EC2, EFS can work with EC2 instances in multi-AZ.
+
+EFS is a High Available, Scalable, and expensive service
