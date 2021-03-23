@@ -633,5 +633,20 @@ IAM-based authentication can be used to login to RDS MySQL & PostgreSQL
 
 > RDS 通常被创建在私子网中，Network 被 SG 所保护，SG 控制谁能连接到 RDS<br>
 > IAM Role 控制谁能对RDS进行管理<br>
-> 传统的登录数据库使用 username/password<br>
+> 可以使用 username/password 登录数据库使用<br>
 > 也可以使用 IAM role(MySQL & PostgreSQL支持)登录数据库<br>
+
+*IAM Authentication*
+works with MySQL & PostgreSQL
+no need for a password, just a token obtained through IAM & RDS API call
+the token has a lifetime of 15 minutes
+the IAM Authentication has the following benefits:
+
+Network in/out must be encrypted using SSL
+IAM to centrally manage users instead of DB
+Can leverage IAM Roles and EC2 Instance profiles for easy integration
+
+> 使用 IAM 登录数据库时，不需要设置 username/password ，只需要
+> 通过 IAM 和 RDS API的调用获得 token
+> token 可以维持 15分钟
+> 必须通过SSL连接
