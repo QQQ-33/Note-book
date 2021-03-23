@@ -1,7 +1,7 @@
 ### ES
 > Elasticsearch 是一个分布式的搜索和分析引擎
 > 提供近实时的搜索和分析，可以保存各种类型的数据，结构化，非结构化，数字，地理信息。
-> ES 以文档形式保存复杂的数据结构，以JSON格式序列化。当ES以集群形式存在，document存在于各个节点，可以从任意节点快速访问。
+> ES 以文档形式保存复杂的数据结构，以 JSON 格式序列化。当 ES 以集群形式存在，document 存在于各个节点，可以从任意节点快速访问。
 > ES利用***倒排索引***对文档中的每个单词进行索引。
 > index 可以看作是 document 的优化集合，document 是 fields 的集合。默认情况，ES对所有 field 进行索引，并根据数据类型选择专用的数据结构。
 > text使用 inverted indeices ， number 和 geo 使用 BKD trees（空间坐标查找优化）。
