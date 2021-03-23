@@ -421,7 +421,7 @@ the goal for an ASG is to:
 ### Elastic Block Store (EBS) EBS
 > - 类似一个 USB，可以快速的 attach 给一个实例，
 > - 只能在同AZ内相互传递，不能跨AZ
-> - 需要为所有容量付费
+> - 需要为所有容量付费(即使只用了一部分)
 > - 4种型号：
 >   - GP2(SSD): 普通的SSD，兼顾价格和性能，适合多样性的工作，100-3000 IOPS，最高 16000IOPS， 1GB-16TB
 >   - IO1(SSD): 高性能SSD，适合重要的任务，低延迟，高吞吐量，100 - 32000 IOPS，适合大型数据库，4GB-16TB
@@ -505,4 +505,133 @@ Use case:
 ![asg](./assert/overview-flow.png)
 EFS is a managed NFS (network file system) that can be mounted on many EC2, EFS can work with EC2 instances in multi-AZ.
 
-EFS is a High Available, Scalable, and expensive service
+EFS is a High Available, Scalable, and expensive service(3x GP2)
+
+**EBS or EFS**
+- EBS 同一时间只能 attach 给一个 EC2 实例
+- EBS 是AZ锁定的，不能跨分区
+- 想要迁移 EBS 需要先把EBS做成 snapshot 然后把 snapshot 分享给其他 AZ 或 account，再利用 snapshot 重建EBS
+- EBS制作snapshot的过程需要 I/O ，所以不应该占用 APP 正常应用的时间
+- 默认情况下 EC2 的 root EBS在 terminated 时删除，可以手动关闭这个设置
+- 系统的I/O需求增大，可以增加 EBS的 size，或者attach 高吞吐的 EBS 类型
+- EFS 可以attach 给多个EC2，并且可以跨AZ， EFS比 EBS贵3倍(GP2)
+- EFS 适合 share file，等需要共享存储的工作
+- EBS 制作的 AMI (snapshot) 可以被 ASG 使用，快速的 scale out
+
+# Relational Database Service (RDS)
+> RDS 是全托管的关系型数据库服务，支持 MySQL PostgreSQL MariaDB Oracle SQLServer Aurora
+
+RDS is a managed service:
+- Automated provisioning, OS patching
+- Continuous backups and restore to specific timestamp (Point in Time Restore)
+- Monitoring dashboard
+- Read replicas for improved read performance
+- Multi-AZ setup for Disaster Recovery
+- Maintenance windows for upgrades
+- Scaling capability (vertical and horizontal)
+- Storage backed by EBS (gp2 or io1)
+
+**BUT, you cannot SSH into your instances**
+
+There are two important features for RDS
+
+1. Multi-AZ: this is for “Disaster Recovery”
+2. Read Replicas: this is for “Improving Performance”
+
+Read Replica 
+
+> Read Replicas 增加性能<br>
+> 三种只读副本(主要区别是跨区域访问的流量费用和延迟)
+> - 同 AZ(不产生流量费用)
+> - 跨 AZ
+> - 跨 Region
+> 
+> 副本同步是异步进行的，所以只能达到最终一致，不能实现强一致<br>
+> 副本可以提升为独立的数据库使用，提升之后就脱离了原有的副本机制<br>
+> 每个副本有独立的 endpoint 需要手动切换 connection的URL来连接到副本数据库<br>
+> 可以创建副本的副本<br>
+> 最多可以创建5个副本<br>
+
+Multi-AZ
+
+This is an exact copy of your production database in another AZ
+Automatically synchronized when your prod database is written to
+In the event of the following:
+planned database maintenance
+DB instance failure
+AZ failure
+Network failure
+This is only for Disaster Recovery, increase availability
+
+> Multi AZ 故障恢复，增加可用性<br>
+> 在不同的AZ维护一个完全 copy的副本，自动同步副本
+> 对外暴露统一的 DNS name 进行访问，自动进行 failover
+> 增加了数据库的可用性
+> 可以把 Read Replicas 做成 Multi AZ用于故障恢复
+
+**Backups**
+
+There are two types of Backups for RDS:
+- Automated Backups
+- Database Snapshots
+
+*Automated Backups*
+
+It allows users to recover your database to any point in time within a “Retention Period”, this is around 7 ~ 35 days.
+
+Automated backup is enabled by default, the backup data is stored in S3, meanwhile, the size of your RDS is equal to the size of S3
+
+- Daily full backup of the database (during the maintenance window)
+- Transaction logs are backed-up by RDS every 5 minutes
+- This gives the ability to restore to any point in time (from oldest back-up to 5 minutes ago)
+- 
+> 自动备份，备份的文件可以保存7~35天，RDS默认开启自动备份，数据保存在S3上<br>
+> 每天在维护窗口时间自动备份<br>
+> 数据库的操作日志每5分钟自动备份<br>
+> 可以恢复任意时间点的数据，最早到最早的备份，最新到最近的5分钟<br>
+
+*Database Snapshot*
+
+Database Snapshot is stored even after you delete the original RDS Instance
+
+But it is manually triggered by the user, and retention of backup for as long as you want
+> RDS 的 snapshot 使得即使删除了 RDS 实例数据库的数据依然保留了下来<br>
+> snapshot 需要手动触发<br>
+
+
+**RDS Securities**
+*Encryptions*
+
+This is achieved by using AWS KMS (Key Management Service), once the encryption is on, the followings are encrypted:
+
+- data underlying storage
+- automated backups
+- read replicas
+- database snapshots
+> RDS 可以被KMS加密(AES-256)， 加密之后，数据后台数据被加密，自动备份被加密，只读副本被加密，snapshot也被加密<br>
+> 只有创建 RDS 时可以选择加密，主库不加密，从库能加密<br>
+
+We can encrypt the primary DB and read replicas with AWS KMS - AES - 256 encryption, this has to be defined at launch time.
+
+If the primary DB is not encrypted, the read replicas cannot be encrypted
+
+*At rest encryption and In-flight encryption*
+
+This allows to use SSL Certificates to encrypt data to RDS in flight, you have to provide SSL options with trust certificate when connecting to the database
+
+> 可以使用SSL进行加密访问数据库
+
+*Network Security*
+
+RDS databases are usually deployed with a private subnet, not in a public one
+RDS security works by leveraging security groups, it controls which IP / security group can communicate with RDS
+*Access Management*
+
+IAM policies help control who can manage AWS RDS through the RDS API, like “who can create a read replica? etc..”
+traditional username/password can be used to log into the database
+IAM-based authentication can be used to login to RDS MySQL & PostgreSQL
+
+> RDS 通常被创建在私子网中，Network 被 SG 所保护，SG 控制谁能连接到 RDS<br>
+> IAM Role 控制谁能对RDS进行管理<br>
+> 传统的登录数据库使用 username/password<br>
+> 也可以使用 IAM role(MySQL & PostgreSQL支持)登录数据库<br>
