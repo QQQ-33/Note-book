@@ -650,3 +650,116 @@ Can leverage IAM Roles and EC2 Instance profiles for easy integration
 > 通过 IAM 和 RDS API的调用获得 token
 > token 可以维持 15分钟
 > 必须通过SSL连接
+
+### Aurora
+> AWS 专属的服务，支持 MySQL 和 PostgreSQL<br/>
+> Aurora 号称比 MySQL快5倍，比 PostgreSQL 快3倍<br>
+> 自动增长的容量 10GB - 64TB<br>
+> 最多可以有 15个只读副本<br>
+> 自动故障恢复，原生支持 HA<br>
+> 比 RDS 贵20%<br>
+
+**Aurora HA and Scalability**
+Aurora always maintains 2 copies of your data in each AZ, with a minimum of 3 AZ => which leads to 6 copies of your data
+
+Among these 6 copies of your data across 3 AZ:
+4 copies out of 6 needed for writes
+3 copies out of 6 needed for reads
+self-healing with peer-to-peer replication
+storage is striped across 100s of volumes
+
+> Aurora 总是在每个AZ保持 2个副本，最少保证写入3个AZ，也就是6个副本，分布在 3个AZ 上<br>
+> 4个副本用于写入，3个用于读取<br>
+> 通过 *对等复制* (对等复制解决了写的瓶颈，所有节点不分主从都可以读写)来实现自我修复 <br>
+> 存储是带状的横跨数百个 volumes <br>
+> 默认只有一个 master ，可以创建 15个只读副本，master宕机时只读副本可以自动升级为master， 只读副本可以跨 region<br>
+> master 和 只读副本是两个 Endpoint
+
+- Writer Endpoint
+- Reader Endpoint
+- Shared storage Volumes
+- Auto Scaling
+
+*Aurora Serverless*
+
+Automated database instantiation and autoscaling based on actual usage
+good for infrequent, intermittent, or unpredictable workloads
+no capacity planning needed
+pay per second, can be more cost-effective
+
+> 根据实际使用情况自动创建与扩展实例，适合间歇性，不可预知的任务，按秒计费
+
+*Global Aurora*
+- Aurora Cross Region Read Replicas
+    - Useful for disaster recovery
+    - Simple to put in place
+- Aurora Global Database (recommended)
+    - 1 Primary Region (read / write)
+    - Up to 5 secondary (read-only) regions, replication lag is less than 1 second
+    - Up to 16 Read Replicas per secondary region, helps for decreasing latency
+    - Promoting another region (for disaster recovery) has an RTO (Recovery Time Objective) of < 1 minute
+> 两种方式实现跨Region访问的 Aurora，
+> - 跨 Region 的只读副本(在其他 Region创建只读副本)
+>   - 适合灾难恢复
+>   - 简单有效
+> - 使用 Global 版 Aurora
+>   - 一个主Region负责读写
+>   - 最多5个副 Region 只读，数据同步延迟低于 1s
+>   - 每个副Region可以有 16个只读副本，用于减少延迟
+>   - 灾难恢复时，提升副Region为主Region 耗时小于1分钟
+
+### ElastiCache
+
+- The same way RDS is to get managed Relational Databases 
+- ElastiCache is to get managed Redis or Memcached
+- Helps reduce the load off of databases for reading-intensive workloads
+- Make application stateless
+- Write Scaling using **Sharding**
+- Read Scaling using **Read Replicas**
+- Multi-AZ with failover Capability
+- AWS takes care of OS maintenance/patching, optimizations, setup，configuration, monitoring, failure recovery, and backups
+
+Application queries ElastiCache first, if data is not available (cache miss) then get data from RDS and store in ElastiCache, so that for the later queries, it will reach cache hit
+
+> 应用首先查询 cache，如果没有可用数据(cache miss)，再从 RDS 查找数据并存在 cache 中，以便后续的查找可以从 cache 中获取数据(cache hit)
+
+> 减少 RDS 的负载，设定失效策略，保证数据是最新的
+ 
+*User Session Store*
+> 帮助实现 statless 的系统，多个实例可以从 cache 中获取用户的登录状态
+
+ElastiCache - Redis or Memcached
+<table>
+<tr><th>Redis</th><th>Memcached</th></tr>
+<tr><td>Multi-AZ with Auto-Failover</td><td>Multi-node for the partitioning of data (sharding)</td></tr>
+<tr><td>Read Replicas to scale reads and have high availability</td><td>Non persistent</td></tr>
+<tr><td>Data Durability using AOF persistence</td><td>No backup and restore</td></tr>
+<tr><td>Backup and restore feature</td><td>Multi-threaded architecture</td></tr>
+</table>
+If you need scale horizontally, you need to choose Memcached
+If you need Multi-AZ, Backups, and Restores, you need to choose Redis
+
+> Redis 可以跨 AZ，故障恢复，Memcached可以水平扩展，但是不能故障恢复
+
+**ElastiCache - Cache Security**
+All caches in ElastiCache:
+- support SSL in-flight encryption
+- Do not support IAM authentication
+- IAM policies on ElastiCache are only used for AWS API-level security
+
+*Redis AUTH*
+
+- You can set a “password/token” when you create a Redis Cluster
+- This is an extra level of security for your cache (on top of Security Group)
+
+*Memcached*
+- Supports SASL-based authentication
+
+**ElastiCache for Solutions Architects**
+Patterns for ElastiCache
+
+1. Lazy Loading: all the read data is cached, data can become stale in the cache
+2. Write Through: Adds or Update data in the cache when written to a DB (no stale data)
+3. Session Store: store temp session data in the cache (using TTL features)
+
+> Computer science 最难的两件事： 缓存失效，事物命名
