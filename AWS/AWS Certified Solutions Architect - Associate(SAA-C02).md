@@ -763,3 +763,179 @@ Patterns for ElastiCache
 3. Session Store: store temp session data in the cache (using TTL features)
 
 > Computer science 最难的两件事： 缓存失效，事物命名
+
+# AWS Rout53
+- Route 53 is a Managed DNS(Domain Name System), 不区分Region
+- DNS is a collection of rules and records which helps clients understand how to reach a server through URLs
+- In AWS the most common records are:
+  - A: URL to IPv4
+  - AAAA: URL to IPv6
+  - CNAME: URL to URL
+  - Alias: URL to AWS resources
+
+- Route 53 can use:
+  - public domain names you own
+  - private domain names that can be resolved by your instances in your VPCs
+
+**DNS Records TTL(Time to Live)**
+> client 访问某个域名时，先访问会 Route 53，Route 53 返回域名对应的 IP给client 并且附带了一个TTL，浏览器会根据TTL的时间对域名映射的IP地址进行缓存。<br>
+> 长时间的 TTL 可能会导致recorde失效(DNS recorde 更改)<br>
+> 短时间的 TTL 会导致大量的流量进去 Route 53<br>
+> 需要对TTL做取舍，每条 record 都有一个TTL
+
+**CNAME vs Alias**
+- 想把 AWS 服务提供的域名映射为自定义的域名应该使用哪种recorde
+- CNAME:
+  - Points URl to URL(app.mydomain.com => app.anotherdomain.com)
+  - 只支持子域名的映射，不支持根据名的映射(不支持 mydomain.com)
+- Alias:
+  - Points URl to URL(app.mydomain.com => app.anotherdomain.com)
+  - 支持根域名和子域名
+  - 免费
+  - 原生的 health check 
+
+**Routing Policy**
+
+*Simple Routing Policy*
+- map a domain to one URL(也可以 map 到多个 URL)
+- 当想重定向请求时使用
+- 不能使用 health checks
+- 如果向客户端返回了多个值，客户端将随机访问其中一个
+
+*Weighted Routing Policy*
+- 按 % 控制多少流量进入指定的 endpoint
+- 在进行新 app 测试时将少量流量引入新 app 的地址
+- 可以按照 Region 来区分流量
+- 可以使用 health check
+- (多条记录，每条 map 一个URL并指定权重)
+
+*Latency Routing Policy*
+- 重新向请求到延迟最低的 URL
+- 根据用户到对应 AWS Region的时间来评估延迟
+- 对于延迟要求很高的 app 非常有用
+- (多条记录，每条 map 一个URL并指定 Region)
+
+*Failover Routing Policy*
+- 必须结合 health check使用
+- 自动将 unhealth 的流量转发给 health的URL
+
+*GEO Location Routing Policy*
+- 与基于延迟的策略不同
+- 基于用户所在的地理位置进行路由
+- 必须有一个 default 的记录保证默认的路由
+- 每条记录可以选择一个区域
+
+*Multi Value Routing Policy*
+- 适合需要路由流量到多个 URL
+- 想要使用 health check
+- 每个 Multi Value Record 最多可以返回 8 个URL
+- 它不是 ELB 的替代品
+
+**Health Checks**
+- 单独创建，并可以与 Route 53的某些 Policy集成，帮助判断某个域名是不是挂了
+- 默认 3个 failed/success 来切换health check 的状态
+- 默认 30 秒进行一次 health check(更短的间隔，更高的花费)
+- 后台有大约 15个 health checker 来 check endpoint(总体下来，平均间隔 2s 左右一次 check)
+- HTTP/HTTPS/TCP ，不支持SSL认证
+- 可以与 CloudWatch集成(监控 CloudWatch 的 Alarm 是否报警了)
+
+**Route 53 as a Registrar**
+> Route 53也是一个域名供应商。可以在 Route 53 上使用从第三方购买的域名。
+> 1. 在 Route 53上创建 Hosted Zone
+> 2. 在第三方域名供应商更新 name server 的记录，使用Route 53 的name server
+
+## Architectures 架构方案
+
+*Statesless Web App: WhatIsTheTime.com*
+> WhatIsTheTime.com 是一个最简单的示例网站，给用户提供当前的时间<br>
+> 目标：
+> - 完全的自动的垂直和水平扩展
+> - 没有宕机时间(高可用)
+
+1. 一个 EC2 + EIP，为用户提供简单的响应
+2. 用户越来越多，当前实例不够了，考虑垂直扩展，但是在升级EC2时，有downtime，不友好。
+3. 继续，用户暴增，一个实例不够了，考虑水平扩展，每个实例对应一个 EIP，用户需要记录每个 EIP 来进行访问，不友好。
+4. 为了友好的访问，不使用EIP，使用 Route 53 将一个域名映射到各个EC2 IP，但是 record 是固定的，这在我们进行水平扩展时会出现问题(重启实例 IP 会变)，用户由于 **TTL**，将会被路由到已经 stop的EC2，不友好
+5. 将所有 EC2 挂载 ELB 下，并使用 Route53将 公开域名映射到 ELB的域名，这样用户访问就没有问题了，水平扩展时，ELB也会对流量做出响应的转发。对用户友好了，但是水平扩展需要手动操作。
+6. 使用 ASG 对 EC2 的水平扩展进行管理，省去了人工维护。当前所有 EC2， ASG，ELB 处于用一个AZ，这时地震了，这个AZ down了。
+7. 开启 ELB 的跨 AZ 以及 health check， 并且开启 ASG 的跨 AZ 在多个 AZ 之间部署 EC2，实现 HA。看上去很完美了。
+8. 开始考虑成本问题，可预见的必须使用的 EC2 实例(比如 每个AZ至少一个 EC2)，那么可以使用 RI 进行预留。
+
+considering 5 pillars for a well achitected application:
+costs, performance, reliability, security, operational excellence
+
+> 架构师要考虑我的系统需要什么，以及如何满足这些需求<br>
+> 一个好的架构的 5 大支柱：
+> - 成本
+> - 性能
+> - 可用性
+> - 安全性
+> - 易用性(容易运维)
+
+*Statesless Web App: MyClothes.com*
+> MyClothes.com 一个购物网站
+> - 同一时间有很多用户，需要根据用户量水平扩展，保持 stateless<br>
+> - 扩展的同时，不能丢失用户的购物车<br>
+> - 需要记录用户的基础信息，比如用户名等等<br>
+
+1. 假设我们拥有了之前的可伸缩高可用架构，现在需要记录用户的 shopping cart，可以使用 ELB 的 sticksession，但是 scale in/out 时，依然会丢失信息。
+2. 考虑使用 cookie 来记录 shopping cart，但是需要 client 开启 cookie 功能，并且这增加了 HTTP 请求时发送的数据，同时 cookie 也不能记录很大的数据量。
+3. 考虑使用 Elastic Cache，client 每次请求会附带 sessionId 信息，利用 sessionId 将shopping cart 记录在 cahce 中，这样就解决了 shopping cart 问题。
+4. 如何保存用户的信息，商品信息这些基础信息，使用 RDS。
+5. 用户量开始增加，由于大量的用户访问是 READ 操作，考虑使用 RDS 的只读副本分担读取的压力，这会带来成本的上涨。
+6. 改变思路，使用 cache 缓存商品信息，client 访问时先查cache ，cache miss 则查询RDS，并缓存到 cache，后续的请求则会 cache hit，减轻了 RDS 的压力。
+7. 新能足够了，开始考虑高可用性，开启 RDS 和 Elastic Cache 的 MultiAZ，实现高可用。
+8. 最后，考虑安全问题，对外的入口是 ELB，所以ELB 的 SG 开启 all traffic，EC2 的 SG 只允许 ELB的 SG 的 HTTP流量， RDS和ElasticCache 的SG 只开启 EC2 SG对应端口的 TCP流量。保证安全性。
+9. 成本问题，在满足性能的前提下，购买RI，使用最少的实例。
+
+> 总结：
+> - 这是一个最简单的 3 层架构应用
+>   1. client tier (Route 53, ELB)
+>   2. web tier (EC2, ASG)
+>   3. database tier (RDS, ElasticCache)
+
+*Statesful Web App: MyWordPress.com*
+> MyWordPress.com 是一个常见的类似博客的网站。<br>
+> 可以上传图片，用户的博客要保存，再次访问时可以看到之前保存的内容<br>
+
+1. 考虑如何保存基础信息和用户数据，可以使用 RDS, 或者高性能的 Aurora。
+2. 图片类数据可以放在 EC2 的 EBS 上，但是水平扩展时，用户的数据有可能保存在其他的EC2的EBS上。
+3. 考虑使用 EFS， 使所有 EC2 实例可以从 EFS 上读取相同的数据。
+
+> 总结：
+> 如何选择高性能的数据库，容易的使用 Multi AZ，backup 等功能(Aurora)<br>
+> 如何保证分布式系统统一的存储(EFS 比 EBS 贵，但是好处更多)<br>
+
+**Instantiating Applications quickly**
+> 如何快速部署我们的系统，充分发挥云上的优势：
+> - EC2 instances：
+>   - 使用 Golden AMI：把应用需要的application全部装好，并制作成 AMI，当lanuch其他instance 时，使用这个 Golden AMI
+>   - 使用 user data，来进行一些个性化配置。
+>   - 将上面两个集合使用(ElasticBeanstalk)
+> - RDS:
+>   使用 snapshot 快速的部署一个数据库
+> - EBS：
+>   使用 snapshot 快速的迁移数据
+
+
+# ElasticBeanStalk
+EB is a developer centric view of deploying an application on AWS
+> ElasticBeanStalk 帮助 developer 快速部署应用程序，它使用到 EC2 ELB ASG RDS等等应用需要的服务<br>
+> 所有这些用到的服务都在一个 view 里呈现，方便管理<br>
+> BeanStalk 免费，底层用到的服务收费<br>
+
+- 完全托管的服务：
+  - EB帮我们配置底层的EC2
+  - 我们只需要管理我们的应用代码
+- 三种部署模式：
+  - Single Instance，单点模式，适合 dev环境
+  - LB + ASG： 适合 PV 和 PROD 环境
+  - ASG： 只有 ASG， 适合非 web 应用
+- 三个组件：
+  - Application
+  - Environment
+  - Application version
+> 可以将某个 Application version 部署到某个 Environment，也支持回滚操作<br>
+> 部署 application 三部曲：create application & environment -> create application version -> release to environment<br>
+> 支持多种应用类型<br>
+
