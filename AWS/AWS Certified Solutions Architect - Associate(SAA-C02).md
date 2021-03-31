@@ -939,3 +939,139 @@ EB is a developer centric view of deploying an application on AWS
 > 部署 application 三部曲：create application & environment -> create application version -> release to environment<br>
 > 支持多种应用类型<br>
 
+# AWS S3 
+
+### Buckets
+- Amazone S3 allows people to store objects(files) in 'buckets'(directories)
+- Buckets must have a globally unique name
+- Buckets are defined at the region level
+
+> S3 让用户可以保存文件到 bucket，类似一个目录
+> bucket 的名字必须是全局唯一的(全世界唯一)
+> bucket 是按照 region 划分的
+
+### Objects
+- Object(files) have a key,THe key is the FULL path
+- there is no concept of "directories" within buckets
+- just keys with very long names that contain slashes
+- Object value are the content of the body
+  - Max size is 5TB
+  - if uploading more than 5GB, must use 'multi-part upload'
+- Metadata (list of text key/value pairs - system or user metadata)
+- Tags(unicode key/value pair - up to 10) - useful for security / lifecycle
+- version ID(if versioning is enabled)
+
+> Objects 有一个 key，对应它的全路径名称
+> bucket 内部是不区分文件夹的，但是 key 可以由 '/' 组成，以便在UI上以文件夹的形式展示
+> 没有文件夹，只是Object的key很长，并且带有'/'
+> 单个文件最大5TB，超过5GB的文件上传时需要使用 multi-part upload
+> Metadata 是一组键值对，用于保存系统或用户的元信息
+> Tags是一组唯一的键值对，最多10个，方便管理生命周期
+
+**Versioning**
+- 可以开启对文件的版本控制
+- 版本控制是 Bucket 层级的功能
+- 对同一个 key 的写入将会生成version 1,2,3 ...
+- 版本控制的最佳实践：
+  - 防止误删除，可以重载回某个版本的文件
+  - 方便回滚文件
+- 在开启版本控制之前，所有文件的版本均为 null
+
+**Encryption**
+- 有四种方式可以加密S3的文件
+  - SSE-S3：加密S3文件，AWS S3 来管理和使用 key
+  - SSE-KMS：使用 KMS 服务来管理加密的 key
+  - SSE-C：用户自行管理加密的key
+  - Client Side Encryption 客户端加密
+> 要区分出哪种加密方式适合哪种场景：<br>
+*SSE-S3*
+- 由 AWS S3 来进行加密，属于服务端加密，用户感知不到 key 的存在
+- 使用 AES-256 的机密方式
+- 要启用S3加密，在 PutObject 时，需要在Header 中增加 "x-amz-server-side-encryption":"AES256"
+
+*SSE-KMS*
+- 由 AWS KMS 托管的 key 来进行加密
+- 也是服务端加密，和 SSE-S3 的区别是 key 可以管理和追踪
+- 要启用S3加密，在 PutObject 时，需要在Header 中增加 "x-amz-server-side-encryption":"aws:kms"
+
+*SSE-C*
+- 使用用户管理的 key 来进行加密，用户完全自主管理 key 
+- 也是服务端加密， S3 不会保存用户的key
+- 必须使用 HTTPS 的方式 PutObject
+- 在 PutObject 时，需要在Header 中增加加密所需的 key
+
+*Client Side Encryption*
+- 用户端自己进行数据加密，可以使用比如S3 client 的 encryption 进行加密
+- 在PutObject 之前就要对数据进行加密
+- 在从 S3 获取数据之后也要在用户端自行解密
+- 用户完全自主管理加密解密的过程
+
+**S3 Security**
+- User Base
+  - IAM policies - which API call should be allowed for a specific user from IAM console
+
+- Resource Based
+  - Bucket Policies - bucket wide rules from the S3 console - allows cross account
+  - Object Access Control List(ACL) - finer grain
+  - Bucket Access Control List(ACL) - less common
+
+> S3的访问控制：
+> - 基于用户的控制
+>   - 使用 IAM Policies 控制通过 API 访问的动作和资源
+> - 基于资源的控制
+>   - Bucket 策略，在 S3 控制台设置的宽泛规则，可以设置跨账号的访问
+>   - 基于对象的访问控制，更精细
+>   - 基于Bucket的访问控制，不常用
+
+S3 Bucket Policies
+- JSON based policies
+  - Resources: buckets and objects
+  - Actions: set of API to allow or deny
+  - Effect: allow or deny
+  - Principal: the account or user to apply the policy to
+- Use S3 bucket for policy to
+  - grant public access to the bucket
+  - force objects to be encrypted at upload
+  - grant access to another account (Cross-Account)
+
+
+Networking
+
+- Supports VPC Endpoints (for instances, in VPC without www internet)
+
+Logging an Audit
+
+- S3 access logs can be stored in other S3 bucket
+- API calls can be logged in AWS CloudTrail
+
+User Security
+
+- MFA
+- Signed Urls: URLs that are valid only for a limited time (eg: premium video service for logged in users
+
+> 可以在VPC内创建 S3 Endpoint，使VPC内的组件可以不通过 internet 而通过 VPC 直接访问 S3<br>
+> S3 的访问日志可以保存在某个 Bucket 内<br>
+> S3 API 的调用日志可以在 CloudTrail 中查看<br>
+> 可以使用 MFA 对删除某个版本的文件时进行认证<br>
+> 可以提供一个短时间可访问的链接(Signed URLs)，来访问文件<br>
+
+**S3 website**
+> S3 可以用来制作静态网站，注意上传的网页要开启 public access
+> 并且 bucket policy 要设置 public access
+> 在 S3 的 bucket 设置中开启 website，这样可以通过当前bucket的域名访问网站
+
+**S3 CORS**
+If you request data from another S3 bucket, you need to enable CORS
+
+Cross Origin Resource Sharing (CORS) allows you to limit the number of websites that can request your files in S3 and limit your costs
+> 要在一个 bucket 中访问另一个 bucket 的内容，那么需要对 bucket 开启 CORS 跨域访问
+
+**Consistency Model in S3**
+
+Read After Write
+
+> 当put一个新文件时，可能会马上就可以读取(未完全上传完的文件)，所以一定保证在完全写入之后再进行读取
+
+Eventually Consistent
+
+> 当 Put 一个已经存在的文件，或者 DELETE 文件时，会有短暂的延迟，但是会有最终一致性
