@@ -1075,3 +1075,76 @@ Read After Write
 Eventually Consistent
 
 > 当 Put 一个已经存在的文件，或者 DELETE 文件时，会有短暂的延迟，但是会有最终一致性
+
+**S3 MFA Delete**
+- MFA 要求用户在进行 S3 的某些操作时，必须在某设备上(通常是手机或其他设备) 生成一个 code 用于校验。
+- 要使用 MFA Delete，必须开启 versioning
+- 只有 bukcet owner 或者 root account 可以 开启/关闭 MFA Delete
+- MFA 只能通过 AWS cli 开启
+
+**S3 Access Logs**
+- 开启 access logs 
+- 可以在另一个 bucket 中查看所有对开启了 access log 的bucket的操作
+
+**S3 Cross Region Replication**
+```python
+# S3 的跨区复制
+# 必须先开启 versioning
+# 目标 bucket 必须和原bucket不在同一个 region
+# 可以跨账号复制
+# 复制过程是异步的
+# 原 bucket 必须给 目标 账号适当的权限
+```
+
+
+# AWS CLI
+使用 command line 操作 AWS
+### AWS CLI on local PC
+```shell 
+# 配置 AWS 
+aws configure
+
+# 配置好后会在当前用户根目录生成 .aws/ 目录
+# 目录里面有两个文件 
+config credentials
+# config 里面包含默认的 region 等信息
+# credentials 里面包含 AKSK 信息
+
+# 配置不同的 account
+aws configure --profile
+```
+
+### AWS CLI on EC2
+```shell 
+# 不要直接在 EC2 上使用 aws configure 进行配置，非常不安全
+# 使用 IAM role 来赋予 EC2 某些权限
+# 在 IAM 中创建一个 Role，并 attach some role policy，最后将Role attach 给 EC2
+```
+### IAM Role & Policy
+### EC2 Instance Metadata
+It allows AWS EC2 instances to “learn about themselves” without using an IAM Role for that purpose
+
+curl http://169.254.169.254/latest/meta-data/
+
+you can retrieve the IAM Role name from the metadatam but you cannot retrive the IAM Policy
+
+*Metadata = Info about the EC2 Instance*
+
+> 通过调用 API 获取当前 EC2 的 meta-data，不需要 attach role
+
+# AWS SDK
+使用 application code 操作 AWS
+```shell
+# 推荐使用默认的 credential
+# 默认查找本机 .aws 目录下的 credentials
+# 如果是运行在 EC2上的程序，会使用当前EC2 的role
+# 可以使用环境变量传入 AKSK AWS_ACCESS_KEY_ID,  AWS_SECRET_KEY_ID, 不推荐这么做，这么做会暴露 AKSK
+# 一定不要把 AKSK 直接写入代码
+
+# 最佳实践是通过运行程序的实例获取权限
+
+#################
+# Exponential Backoff
+# 由于调用次数过多导致的调用失败，在重试时会以指数增加等待的时间
+
+```
