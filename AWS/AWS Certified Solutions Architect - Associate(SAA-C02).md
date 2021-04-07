@@ -1095,6 +1095,106 @@ Eventually Consistent
 # 复制过程是异步的
 # 原 bucket 必须给 目标 账号适当的权限
 ```
+**S3 Pre-signed URL**
+```python 
+# 生成一个临时的URL，使用户可以通过这个URL upload / download 文件
+```
+
+**S3 Storage Classes**
+> S3 的存储级别，作用于 object
+- Amazon S3 Standard - Geeneral Purpose
+  - 99.999999% 的可用性，跨AZ访问
+  - 最多可以同时2个可用区不可用
+  - use case：大数据分析等场景
+- Amazon S3 Standard - Infrequent Access (IA)
+  - 99.999999% 的可用性，跨AZ访问
+  - 用于不经常访问的数据，但是偶尔会访问
+  - 比 Standard 成本低
+  - use case：用作故障恢复的store，备份的文件
+- Amazon S3 One Zone - Infrequent Access
+  - 同 IA 的特性，但是只能在一个 AZ 中访问
+  - 访问的延迟更低，但是AZ宕机时文件就不能访问
+  - 支持 SSL
+  - 比 IA 的价格低 20%
+  - use case：作为第二备份，或者保存可以恢复的文件
+- Amazon S3 Intelligent Tiering
+  - 智能分层，和 standard 一样具有低延迟访问的高性能
+  - 每月需要花少量的监控费用
+  - 自动根据使用频率更改数据的 tier
+- Amazon Glacier
+  - 低成本的存储，适合归档和备份文件
+  - 可以代替本地磁盘存储
+  - Glacier 中保存的对象叫 Archive，每个 Archive 的大小可以为 40TB
+  - Archive 保存在 Vaults 中(不是 bucket)
+  - 三种取回文件的方式：
+    - Expedited(1 - 5分钟 花费很高)
+    - Standaed(3 - 5 hours)
+    - Bulk(5 - 12 hours)
+  - 最少要保存90天 
+- Amazon Glacier Deep Archive
+  - 比 Glacier 更便宜
+  - 取回文件比 Glacier 更久：
+    - Standaed(12hours)
+    - Bulk(48hours)
+  - 最少保存180天 
+- Amazon S3 Reduced Redundancy Storage(deprecated - omitted) 
+  - 弃用
+
+**S3 lifecycle configuration**
+- 不常访问的数据放入 IA
+- 不需要实时访问的数据放入 Glacier
+- 这些操作可以通过 lifecycle configuration 自动完成
+```python 
+# Lifecycle Rules
+# 1. Transition actions:
+# 定义更改 storage class 的规则
+# 2. Expiration actions: 
+# 定义 删除文件 的规则
+# Rule 可以根据 perfix 来生效
+# Rule 可以根据 tag 来生效
+```
+
+**some scenario**
+- 15天之内误删除的文件可以立即回复， 一年之内的数据可以在48小时之内恢复
+> 首先需要开启 version 保证删除可以立即恢复 <br>
+> 然后指定规则，nocurrent version转入 IA <br>
+> 1年之后将nocurrent version的文件转入Deep Archive <br>
+
+**S3 Performance Baseline**
+- S3 自动扩容，来支持更多的请求和降低延迟
+- 支持每个 bucket perfix每秒最少 3500个 PUT/COPY/POST/DELETE 请求
+- 每秒最少 5500 个 GET/HEAD 请求
+
+**S3 - KMS Limitation**
+If you use SSE-KMS, then you may be impacted by the KMS limits, since
+
+when you upload a file, it will call the GenerateDataKey API during the call to KMS API<br>
+when you download a SSE-KMS encrypted file, it will cal the Decrypt KMS API<br>
+since API calls will have a upper bound, then your performance with S3 will be impacted<br>
+
+**提高 S3 的性能**
+Multi-part upload
+Transfer Acceleration
+This utilizes the CloudFront Edge Networks to accelerate your uploads to S3. Instead of uploading directly to your S3 bucket, you can use a distinct url to upload directly to an Edge Location, which will then transfer to S3 using Amazon Backbone Network
+
+This is compatible with multi-part upload
+
+**S3 Select & Glacier Select**
+With usage of S3 Select or Glacier Select, you can retrieve less data using SQL by performing server side filtering, which can be filter by row / columnes.
+
+**S3 Object Lock & Glacier Vault Lock**
+> 适合一次写入，不再删除和更改的文件
+S3 Object Lock	                                                Glacier Vault Lock
+Adopt a WORM (Write-once, Read-many) model	                    Adopt a WORM (Write-once, Read-many) model
+Block an object  deletion for a specific amount of time	        lock the policy for future edits (can no longer be changed)
+                                                                Helpful for compliance and data retention
+
+### AWS Athena
+- Athena is a Serverless service to perform analytics directly against S3 files.
+- We can use SQL to do queries, it also has JDBC / ODBC driver
+- It charged per query and amount of data scanned
+- In the exam, if it asks to "analyze data directly on S3", we should use Athena
+
 
 
 # AWS CLI
