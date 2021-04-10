@@ -502,7 +502,7 @@ Use case:
 > 增加容错性，不会改变总容量和总吞吐量，会增加一点延迟
 
 ### EFS (Elastic File System)
-![asg](./assert/overview-flow.png)
+![efs](./assert/overview-flow.png)
 EFS is a managed NFS (network file system) that can be mounted on many EC2, EFS can work with EC2 instances in multi-AZ.
 
 EFS is a High Available, Scalable, and expensive service(3x GP2)
@@ -1248,3 +1248,172 @@ you can retrieve the IAM Role name from the metadatam but you cannot retrive the
 # 由于调用次数过多导致的调用失败，在重试时会以指数增加等待的时间
 
 ```
+
+# AWS Cloud Front
+
+CloudFront is a Content Delievery Network (CDN), which is:
+
+a system of distributed servers / network that deliever webpages and other web content to a user based on the geographic locations of the user, origin of the webpage and a CDN.
+
+it improves read performance, content is cached at Edge Locations <br>
+it has DDoS protention, integration with AWS Shield <br>
+Key Terminology of CloudFront <br>
+Edge Location <br>
+This is the location where content will be cached, and separate to the AWS Region / AZ. <br>
+
+**Origin**
+
+This is the origin of all the files that the CDN will distribute. This can be an
+
+- S3 Bucket
+  for distributing files and caching them at the edge locations
+  enhanced security with CloudFront Origin Access Identity (OAI)
+  CloudFront can be used as an ingress (to upload files to S3)
+- S3 Website
+  must first enable the bucket as a static S3 website
+  Cutom Origin (HHTP) - must be publicly accessible
+- EC2 Instance
+- Elastic Load Balancer
+- Route53
+
+**CoudFront Geo Restriction**
+You can restrict who can access your distribution
+- Whitelist: allow your users to access your content only if they are in one of the areas on a list of approved area
+- Blocklist: Prevent your users from accessing your content if they are in ….
+This can be a good use case when copyright laws to control access to content
+
+> 使用 cloudFront 访问 S3 时，可以用 Origin Access Identity + Bucket Policy 配置 S3 允许 CloudFront 访问，从而无需开启 S3 的 public 访问
+
+**CloudFront Signed URL & Signed Cookies**
+```txt 
+It will be suitable if you want to distribute paid shared content to premium users over the world, with CloudFront Signed URL / Cookie, we attach a policy with:
+
+URL expiration
+IP ranges to be allowed to access the data
+trusted signers - which AWS account can create signed urls
+Signed URL : access to individual files (one signed URL per file)
+
+Signed Cookies : access to multiple files (one signed cookie for many files)
+
+How long should the URL be valid for ?
+
+shared content (movie & music): make it short
+private content (private to users): you can make it last for years
+```
+**AWS Global Accelerator**
+This utilizes the AWS internal network to route to your application. there will be 2 Anycast IPs created for your app
+
+the traffic flow will be:
+> Anycast IP -> Edge Location -> Your application
+What is Unicast IP and Anycast IP ?
+- Unicast IP : one server holds one IP address
+- Anycast IP : all servers hold the same IP address and the client is routed to the nearest one
+
+AWS Global Accelerator works with Elastic IP, EC2 Instances, ALB, NLB (puclic or private one)
+
+- Consistent Performance
+  - Intelligent routing to lowest latency and fast regional failover
+  - No issue with client cache (IP dont change)
+  - Internal AWS Network - fast
+- Health Checks
+  - Global Accelerator performs a health check of you applications
+  - helps make the app global (failover less than 1 minute for unhealthy)
+  - disaster recovery
+- Security
+  - only 2 external IP need to be allowlisted
+  - DDoS protection <- AWS Shield
+
+**Snowball**
+- Physical data transport solution that helps moving TBs or PBs of data in or out of AWS
+- Alternative to moving data over the network(and paying network fees)
+- Secure,tamper resistant, uses KMS 256 bit encryption
+- Tracking using SNS and text messages. RE-ink shipping label
+- Pay per dta transfer job
+- Use case:
+  - large data cloud migrations
+  - DC decommission
+  - disaster recovery
+
+### Storage Gateway
+A bridge between on-premises data and cloud data in S3, typical use cases are disaster recovery, backup & restore, and tiered storage
+
+Block:  Amazon EBS, EC2 INstance store
+File:   EFS
+Object: S3, Glacier
+
+File Gateway
+- configured S3 buckets are accessible using the NFS and SMB protocol
+- supports S3 standard, S3 IA, S3 One Zone IA
+- bucket access using IAM roles for each File Gateway
+- most recently used data is cached in the file gateway
+- this can be mounted on many servers
+> Files are stored as objects in your S3 Buckets, accessed through a Network File System (NFS) mounting point
+![asg](./assert/File-Gateway.png)
+
+Volume Gateway
+The Volume Gateway presents your application with disk volumes using the iSCSI block protocol, backed by S3
+Asynchronously back up as point-in-time snapshots, the snapshots are stored in the cloud as Amazon EBS Snapshots
+Snapshots are incremental backups that capture only changed blocks, but compressed to minimized charges
+=> Storing Virtual Hard Disk Drive in the Cloud
+
+- For Stored Volumes:
+  - Entire Dataset stored on site
+  - Asynchronously scheduled backed up to S3
+- For Cached Volumes:
+  - Entire Dataset is stored on S3
+  - Most Frequently Accessed data are cached on-site (low latency access to most recently used data)
+![asg](./assert/volume-gateway-diagram.png)
+
+Tape Gateway
+- Physical tapes for the backup process, for example
+- Virtual Tape Library (VTL) backed by S3 and Glacier
+- Back up data using existing tape-based processes (and iSCSI interface)
+- Works with leading backup software vendors
+![asg](./assert/tape-gateway-diagram.png)
+
+Exam Tip:
+
+if the question is asking "On-premise data to the cloud", we want Storage Gateway
+
+File Access / NFS -> File Gateway, backed by S3
+Volumes / Block Storage / iSCSI -> Volume Gateway, backed by S3 with EBS Snapshots
+VTL Tape solution / Backup with iSCSI -> Tape Gateway, backed by S3 and Glacier
+
+File Gateway (NFS): Files are stored as objects in your S3 buckets, accessed through an NFS mount point.
+Volume Gateway (iSCSI):	Same using virtual directories via iSCSI block protocol. Files are stored in the cloud as Amazon EBS snapshots. Two types: (1) Stored volumes and (2) Cached volumes.
+Tape Gateway (VTL):	It offers a durable, cost-effective solution to archive your data in the AWS Cloud (same mechanism as Volume Gateway).
+
+### Amazon FSx
+Amazon FSx for Windows
+
+EFS is a shared POSIX system for Linux systems, not suitable for Windows machine
+
+Amazon FSx for Windows is a fully managed Windows file system share drive
+- support SMB protocol and Windows NTFS
+- Microsoft Active Directory integration, ACLs, user quotas
+- it is built on SSD, High IOPS, High Throughput
+- can be accessed from your on-premise infrastructure
+- can be configured to be Multi-AZ (High Availability)
+- Data is backed-up daily to S3
+
+Amazon FSx for Lustre
+
+Amazon FSx for Lustre is a type of parallel distributed file system, for large-scale computing
+
+Machine Learning, High-Performance Computing (HPC), Video Processing, Financial Modeling, Electronic Design Automation
+
+Seamless integration with S3:
+- it can read S3 as a file system (through FSx)
+- it can write the output of the computations back to S3 (through FSx)
+- It can be used from on-premise servers
+
+S3	Object Storage
+Glacier	Object Archival
+EFS	Network File System for Linux instances
+FSx for Windows	Network File System for Windows
+FSx for Lustre	High-Performance Computing
+EBS volumes	Network storage for one EC2 instance at a time
+Instance Storage	Physical storage for your EC2 instance (high IOPS)
+Storage Gateway	File Gateway; Volume Gateway (cache & stored); Tape Gateway
+Snowball / Snowmobile	move a large amount of data to the cloud, physically
+Database	specific workloads, usually with indexing and querying
