@@ -1,5 +1,135 @@
+## AWS Solutions Architect – Associate SAA-C02 Exam Topics
+## 考试大纲
+### Networking
+- Be sure to create VPC from scratch. This is mandatory.
+  - Create VPC and understand whats an CIDR and addressing patterns
+  - Create public and private subnets, configure proper routes, security groups, NACLs. (*hint: Subnets are public or private depending on whether they can route traffic directly through Internet gateway*)
+  - Create Bastion for communication with instances
+  - Create NAT Gateway or Instances for instances in private subnets to interact with internet
+  - Create two tier architecture with application in public and database in private subnets
+  - Create three tier architecture with web servers in public, application and database servers in private. (hint: focus on security group configuration with least privilege)
+  - Make sure to understand how the communication happens between Internet, Public subnets, Private subnets, NAT, Bastion etc.
+- Understand difference between Security Groups and NACLs (hint: Security Groups are Stateful vs NACLs are stateless. Also only NACLs provide an ability to deny or block IPs)
+- Understand VPC endpoints and what services it can help interact (hint: VPC Endpoints routes traffic internally without Internet)
+  - VPC Gateway Endpoints supports S3 and DynamoDB.
+  - VPC Interface Endpoints OR Private Links supports others
+- Understand difference between NAT Gateway and NAT Instance (hint: NAT Gateway is AWS managed and is scalable and highly available)
+- Understand how NAT high availability can be achieved (hint: provision NAT in each AZ and route traffic from subnets within that AZ through that NAT Gateway)
+- Understand VPN and Direct Connect for on-premises to AWS connectivity
+  - VPN provides quick connectivity, cost-effective, secure channel, however routes through internet and does not provide consistent throughput
+  - Direct Connect provides consistent dedicated throughput without Internet, however requires time to setup and is not cost-effective
+- Understand Data Migration techniques
+  - Choose Snowball vs Snowmobile vs Direct Connect vs VPN depending on the bandwidth available, data transfer needed, time available, encryption requirement, one-time or continuous requirement
+  - Snowball, SnowMobile are for one-time data, cost-effective, quick and ideal for huge data transfer
+  - Direct Connect, VPN are ideal for continuous or frequent data transfers
+- Understand CloudFront as CDN and the static and dynamic caching it provides, what can be its origin (hint: CloudFront can point to on-premises sources and its usecases with S3 to reduce load and cost)
+- Understand Route 53 for routing
+  - Understand Route 53 health checks and failover routing
+  - Understand  Route 53 Routing Policies it provides and their use cases mainly for high availability (hint: focus on weighted, latency, geolocation, failover routing)
+- Be sure to cover ELB concepts in deep.
+  - SAA-C02 focuses on ALB and NLB and does not cover CLB
+  - Understand differences between  CLB vs ALB vs NLB
+    - ALB is layer 7 while NLB is layer 4
+    - ALB provides content based, host based, path based routing
+    - ALB provides dynamic port mapping which allows same tasks to be hosted on ECS node
+    - NLB provides low latency and ability to scale
+    - NLB provides static IP address
+### Security
+- Understand IAM as a whole
+  - Focus on IAM role (hint: can be used for EC2 application access and Cross-account access)
+  - Understand IAM identity providers and federation and use cases
+  - Understand MFA and how would implement two factor authentication for an application
+  - Understand IAM Policies (hint: expect couple of questions with policies defined and you need to select correct statements)
+- Understand encryption services
+  - KMS for key management and envelope encryption
+  - Focus on S3 with SSE, SSE-C, SSE-KMS
+  - Know SQS now provides SSE support 
+- AWS WAF integrates with CloudFront to provide protection against Cross-site scripting (XSS) attacks. It also provide IP blocking and geo-protection.
+- AWS Shield integrates with CloudFront to provide protection against DDoS.
+- Refer Disaster Recovery whitepaper, be sure you know the different recovery types with impact on RTO/RPO.
+### Storage
+- Understand various storage options S3, EBS, Instance store, EFS, Glacier, FSx and what are the use cases and anti patterns for each
+- Instance Store
+  - Understand Instance Store (hint: it is physically attached  to the EC2 instance and provides the lowest latency and highest IOPS)
+- Elastic Block Storage – EBS
+  - Understand various EBS volume types and their use cases in terms of IOPS and throughput. SSD for IOPS and HDD for throughput
+  - Understand Burst performance and I/O credits to handle occasional peaks
+  - Understand EBS Snapshots (hint: backups are automated, snapshots are manual) 
+- Simple Storage Service – S3
+  - Cover S3 in depth
+  - Understand S3 storage classes with lifecycle policies
+  - Understand the difference between SA Standard vs SA IA vs SA IA One Zone in terms of cost and durability
+  - Understand S3 Data Protection (hint: S3 Client side encryption encrypts data before storing it in S3)
+  - Understand S3 features including
+    - S3 provides a cost effective static website hosting
+    - S3 versioning provides protection against accidental overwrites and deletions
+    - S3 Pre-Signed URLs for both upload and download provides access without needing AWS credentials
+    - S3 CORS allows cross domain calls
+    - S3 Transfer Acceleration enables fast, easy, and secure transfers of files over long distances between your client and an S3 bucket.
+  - Understand Glacier as an archival storage with various retrieval patterns
+  - Glacier Expedited retrieval now allows object retrieval within mins
+- Understand Storage gateway and its different types.
+  - Cached Volume Gateway provides access to frequently accessed data, while using AWS as the actual storage
+  - Stored Volume gateway uses AWS as a backup, while the data is being stored on-premises as well
+  - File Gateway supports SMB protocol
+- Understand FSx easy and cost effective to launch and run popular file systems.
+  - FSx provides two file systems to choose from: Amazon FSx for Windows File Server for business applications and Amazon FSx for Lustre for high-performance workloads.
+- Understand the difference between EBS vs S3 vs EFS
+  - EFS provides shared volume across multiple EC2 instances, while EBS can be attached to a single volume within the same AZ.
+- Understand the difference between EBS vs Instance Store
+- Would recommend referring Storage Options whitepaper, although a bit dated 90% still holds right
+### Compute
+- Understand Elastic Cloud Compute – EC2
+- Understand Auto Scaling and ELB, how they work together to provide High Available and Scalable solution. (hint: Span both ELB and Auto Scaling across Multi-AZs to provide High Availability)
+- Understand EC2 Instance Purchase Types – Reserved, Scheduled Reserved, On-demand and Spot and their use cases
+  - Choose Reserved Instances for continuous persistent load
+  - Choose Scheduled Reserved Instances for load with fixed scheduled and time interval
+  - Choose Spot instances for fault tolerant and Spiky loads
+  - Reserved instances provides cost benefits for long terms requirements over On-demand instances
+  - Spot instances provides cost benefits for temporary fault tolerant spiky load
+- Understand EC2 Placement Groups (hint: Cluster placement groups provide low latency and high throughput communication, while Spread placement group provides high availability)
+- Understand Lambda and serverless architecture, its features and use cases. (hint: Lambda integrated with API Gateway to provide a serverless, highly scalable, cost-effective architecture)
+- Understand ECS with its ability to deploy containers and micro services architecture.
+  - ECS role for tasks can be provided through taskRoleArn
+  - ALB provides dynamic port mapping to allow multiple same tasks on the same node
+- Know Elastic Beanstalk at a high level, what it provides and its ability to get an application running quickly.
+### Databases
+- Understand relational and NoSQLs data storage options which include RDS, DynamoDB, Aurora and their use cases
+- RDS
+  - Understand RDS features – Read Replicas vs Multi-AZ
+    - Read Replicas for scalability, Multi-AZ for High Availability
+    - Multi-AZ are regional only
+    - Read Replicas can span across regions and can be used for disaster recovery
+  - Understand Automated Backups, underlying volume types
+- Aurora
+  - Understand Aurora
+    - provides multiple read replicas and replicates 6 copies of data across AZs
+  - Understand Aurora Serverless provides a highly scalable cost-effective database solution
+- DynamoDB
+  - Understand DynamoDB with its low latency performance, key-value store (hint: DynamoDB is not a relational database)
+  - DynamoDB DAX provides caching for DynamoDB
+  - Understand DynamoDB provisioned throughput for Read/Writes (It is more cover in Developer exam though.)
+- Know ElastiCache use cases, mainly for caching performance
+### Integration Tools
+- Understand SQS as message queuing service and SNS as pub/sub notification service
+- Understand SQS features like visibility, long poll vs short poll
+- Focus on SQS as a decoupling service
+- Understand SQS Standard vs SQS FIFO difference (hint: FIFO provides exactly once delivery both low throughput)
+### Analytics
+- Know Redshift as a business intelligence tool
+- Know Kinesis for real time data capture and analytics
+- Atleast know what AWS Glue does, so you can eliminate the answer
+### Management Tools
+- Understand CloudWatch monitoring to provide operational transparency
+- Know which EC2 metrics it can track. Remember, it cannot track memory and disk space/swap utilization
+- Understand CloudWatch is extendable with custom metrics
+- Understand CloudTrail for Audit
+- Have a basic understanding of CloudFormation, OpsWorks
+<hr/>
+
+https://www.jianshu.com/p/56fa483e01bc?utm_campaign=hugo
 https://zhenye-na.github.io/aws-certs-cheatsheet
-# AWS Region & Availability Zone
+## AWS Region & Availability Zone
 ### Region
 > A region is a geographical area. Each Region consists of 2 or more Availability Zone.
 
@@ -1417,3 +1547,451 @@ Instance Storage	Physical storage for your EC2 instance (high IOPS)
 Storage Gateway	File Gateway; Volume Gateway (cache & stored); Tape Gateway
 Snowball / Snowmobile	move a large amount of data to the cloud, physically
 Database	specific workloads, usually with indexing and querying
+
+### SQS
+1. Stander
+  - 高吞吐量，最多 10000/s
+  - atlest once 至少一次，可能重复消费
+  - 无序
+  - 每条消息最大 256 kb
+  - 消息可以保存最多14天，默认 4 天
+2. FIFO
+  - 有序，先进先出
+  - 低吞吐量，最多3000/s
+  - contente baesed deduplicate， 可以根据消息内容去重，防止重复消息
+  - exactly once，精确一次消费
+  - 发送/接收 消息需要使用 message group
+
+- Delivery delay
+  - 可以设置延迟，消息进入队列后需要过若干秒后才可见
+- Receive message wait time (Long Polling)
+  - Consumer poll 消息时，如果queue中没有消息，会等待一段时间，直到queue中有消息
+  - 最佳等待时间 20s
+  - 可以减少调用 polling api 的次数，节约成本
+- Visibility timeout
+  - 可见性，一个 consumer poll 了某条消息后，经过多久这条消息才可以被再次消费
+  - 最多 12 hours，默认 30s，也就是 consumer 需要在 30s 内处理完这条消息并 delete
+  - 不 delete，当超过 visibility timeout 后消息又可以被消费
+- Dead Letter Queue (DLQ)
+  - Stander 队列可以被设置为  Dead-letter queue
+  - 当一条消息经过若干次处理仍然处理失败时，可以放入 Dead-letter queue 进行处理
+- Producer
+  - message body 消息的内容
+  - metadata 消息的属性，name value type
+  - 对于 stander Queue，可以在 message 的级别设置 delay
+- Consumer
+  - 需要主动 poll 消息
+  - 一次最多 poll 10条
+  - 需要在 visibility timeout 时间内处理完毕并 delete 消息，否则会重复消费
+- SQS with ASG
+  - 可以使用 CloudWatch 设置 SQS 的 metric 监控队列剩余的消息数
+  - 利用 CloudWatch metric 触发 CloudWatch Alarm
+  - CloudWatch Alarm 触发 ASG 来自动缩放 EC2
+
+### SNS
+- pub/sub 发布订阅模式
+- 一条消息可以被多个消费者同时消费
+- topic， 主题，用于发布消息
+- subscriptions，订阅者，用于接收消息
+- 订阅者可以是 SQS lambda email http/https SMS mobile notification ...
+- Fan out模型，SNS + SQS ， push once in SNS, receive many in SQS
+- 可以与多种 AWS 服务集成，比如 S3 CloudFormation ASG ...
+
+### Kinesis
+- Kinesis Streams
+  - Kafka 的替代品
+  - 消息平台，适合大数据实时处理
+  - 使用 shard 进行分区(Partition)，同 shard 内的消息是有序的，使用 partition key 决定分配到哪个 shard， 按使用的 shard 数收费
+  - write 1mb/s 1000条/s
+  - read 2mb/s 2000条/s
+  - 不可以主动删除进入 kinesis 的消息
+  - PutRecord
+  - PutRecords 减少api调用，节约成本 
+- Kinesis Analysis
+  - 数据分析工具，使用 SQL
+  - 实时分析流式数据
+- Kinesis Firehose
+  - 近实时的数据加载服务
+  - 可以将数据加载到 S3 ElasticSearch Redshift Splunk
+  - 支持多种数据格式
+  - 最少 60s 或者 32MB 一次
+  - 按加载的数据量收费
+
+### Amazon MQ 
+- 托管的 Apache Active MQ
+- 底层跑在EC2上，可以用蓝图快速部署高可用的集群
+- 无缝迁移 OpenWiressl AMQP STOMP MQTT WSS 消息协议，无需重写代码
+
+### serverless
+- Lambda
+  - 无需管理服务
+  - 按运行时常和使用的内存付费
+  - 无限扩展，自动扩展
+  - 可以与所有 AWS 服务集成
+  - 最多3G内存，增加内存也会增加CPU
+  - /tmp 临时存储最多 512mb
+  - 最多 1000 并发
+  - 最多运行 15min
+  - 部署的程序压缩包最多 50mb，非压缩包最多 250mb
+  - 环境变量最大 4kb
+- DynamoDB
+  - 全托管Severless NoSQLDB，非关系型数据库
+  - 自动扩展分布式部署
+  - 高性能，高吞吐，低延迟，低成本
+  - tables 包含无限的 rows
+  - 必须指定 primarykey 不能是 creattime
+  - row 可以包含无限个属性
+  - 每个属性最大 400kb ，支持多种数据类型
+  - 必须设置读写的能力单位
+  - 读取单位 RCU 
+  - 写单位 WCU
+  - DAX: DynamoDB Accelerator, 类似DynamoDB 的缓存，需要独立部署
+    - 非常低的读取延迟
+    - 解决热点数据的读取问题
+    - 默认5min的TTL
+    - 最多10个节点
+    - 跨多AZ每个AZ最少3节点
+  - DynamoDB Streams
+    - 记录DynamoDB变更的日志
+    - 最常用的是与 lambda 集成，用于实时对数据的更改做出响应
+    - 也可以用于跨区域复制
+    - 默认保留 24hours
+
+### Cognito
+- User Pool
+  - 一个 severless 的 database 用于保存用户，并提供用户登录服务
+  - 可以使用 email phone + password 进行登录
+  - 可以与第三方登录认证进行集成
+  - 登录成功后返回 JWT
+- Identity Pool
+  - 用户向经过登录认证的用户提供 AWS 的 Credentials
+  - 可以与 Cognito 或第三方登录集成
+  - 返回 AWS 的临时凭证(STS)
+- Sync
+  - 同步用户设备上的数据
+
+### Choose the right Database
+- RDBMS=SQL/OLTP ：RDS Aurora - 关系型数据库，适合 joins 和复杂查询
+- NoSQL：DynamoDB(~JSON) ElasticCache(K-V) - 非关系型数据库，不适合join等复杂查询
+- Objects store： S3(适合大数据) Glacier(适合存档备份)
+- Data Warehose= SQL Analysis/BI： Redshift， Athena
+- Search：ElasticSearch(JSON)
+- Graph: Neptune(图数据库，展示数据间的关系)
+
+### Monitor
+- CloudWatch
+  - 监控服务的性能指标
+  - Event
+  - Logs
+  - Alarms
+- CloudTrail
+  - 监控谁调用了API操作 AWS 的服务
+- Config
+  - 设置rule
+  - 监控AWS服务的配置的改动
+  - 查看AWS服务的设置是否满足 rule
+
+### STS Security Token Service
+- 临时访问AWS的凭证(crediential)
+- 最多保持1小时
+- AssumeRole
+  - 使用本账号的 Role
+  - 使用其他账号的 Role 用于跨账号访问
+- AssumeRoleWithSAML
+  - 给使用 SAML 进行登录认证的用户提供 STS
+- AssumeRoleWithWebIdentity
+  - 给使用第三方IDP进行登录的用户提供STS
+  - 推荐使用 Cognito 代替使用这种方式
+- GetSessionToken
+  - 用于 MFA
+
+### Directory Services
+- Microsoft Active Directory(AD) ，目录管理，一个应用点是管理用户和资源
+- AWS Managed AD
+  - AWS 中托管的 AD，可以保存用户
+  - 可以与之前的 AD 建立信任
+- AD Connector
+  - AD的代理，转发请求到AD
+  - 用户都保存在 AD
+- Simple AD
+  - 完全托管的AD
+  - 不能与之前的AD一起用
+
+### KMS key Management Service
+- 用于管理密钥
+- KMS 保存的密钥不能被用户获取到，但是可以被轮换
+- 代码中不要保存明文，但是可以保存 KMS 加密后的内容，利用 KMS加密解密
+- 只能加密 4k 以内的内容
+- 迁移 RDS ElasticCache EBS EFS 的时候必须使用KMS加密
+
+### Parameter store
+
+### Secrets Manager
+- 保存密码
+- 若干天轮换一次，使用lambda来进行轮换
+- 使用 KMS 进行加密
+- 与 RDS 集成
+
+### CloudHMS Hardware Security Module
+- 不同于 KMS，HMS提供加密所需的硬件设备
+- 用户需要自己管理加密所需的密钥
+- 必须以集群方式在Mulity AZ创建
+
+### Shield
+- 防护 DDos 攻击
+- 在 3、4 层进行防护
+- 免费，默认为所有 AWS 用户开启
+
+### WAF Web Application Firewall
+- 在7层进行防护
+- 可以部署在 ALB ApiGateWay CloudFront
+- 自定义 ACL(Access Control List)：
+  - 可包含的规则：IP 范围， HTTP headers， HTTP Body， URL string
+  - 可以防止 SQL 注入，XSS(Cross-Stie Scripting)
+  - 可以基于事件发生的百分比进行防护
+  - 地理位置检验
+
+
+### Networking
+
+**CIDR - IPv4 (Classless Inter Domain Routing)**
+- CIDR用于描述IP地址段范围。它由 IP/Mask 组成
+- CIDR is used for Security Groups rules or AWS networking in general. They help to define an IP address range
+  - 192.168.100.0/32 -> one IP
+  - 0.0.0.0/0 -> all IPs
+- we can also do something like 192.168.0.0/26, which means there are 64 IPs (192.168.0.0 - 192.168.0.63)
+- A CIDR has two components:
+  - the base IP (xx.xx.x.x): it represents an IP contained in the range
+  - the subnet mask (/32): defines how many bits can change in the IP
+  - The subnet ask can take two forms
+- example:
+  - /24 allows 2 ^ (32 - 24) = 2 ^ 8 IPs from the base IP
+- Quick memo:
+  - /32: no IP can change
+  - /24: last IP number can change
+  - /16: last two IP number can change
+  - /8: last three IP number can change
+  - /0: all IPs
+
+**Private vs Public IPv4**
+- The Internet Assigned Numbers Authority (IANA) established certain blocks of IPv4 addresses for the use of private (LAN) abd public (Internet) addresses
+- 地址管理局对于私网的IP范围作了规定
+- Private IP can only allow certain values， 专用网络只能包含如下 IP 段，也就是VPC的IP段只能在下面的范围内
+  - 10.0.0.0 - 10.255.255.255 (10.0.0.0/8) <- in big networks 一般大型的专用网络，例如康明斯内网的IP段，VPC 的IP段
+  - 172.16.0.0 - 172.31.255.255 (172.16.0.0/12) <- AWS  AWS的专用网络，AWS内网的IP段
+  - 192.168.0.0 - 192.168.255.255 (192.168.0.0/16) <- home networks 普通家庭的专用网络。
+- Public IP 范围是除了上述的所有IP
+
+**Default VPC**
+- 每个新建账号有一个默认的VPC
+- 它包含 internet 访问，所有 instances 都有public IP
+- 所有instance都有private /public DNS
+- 所有子网都有路由表到internet
+
+**VPC**
+- 创建 VPC 需要指定 VPC 的IP范围，每个账号最多可以由5个VPC(可以申请增加)
+- 每个VPC可以有 5 个CIDR，CIDR 的范围是最少16(/28)，最大 65536(/16)个Ip
+- VPC 内的 CIDR 之间不能重叠
+
+**subnet**
+- VPC是Regional的，每个可用区(AZ)可以创建若干子网
+- 创建子网也需要CIDR 规定 IP范围
+- 每个子网的前4个ip及最后一个ip是AWS的保留IP，用户无法使用。例如CIDR 10.0.0.0/24:
+  - 10.0.0.0
+  - 10.0.0.1
+  - 10.0.0.2
+  - 10.0.0.3
+  - 10.0.0.255
+- 由 Internet 能否访问子网又可以将子网分为 public subnet 和 private subnet，(注意不是 subnet 能否访问 Internet，而是 Internet 能否访问 subnet)
+- exam tip：用户需要 29个 IP CIDR 为 /27，是否满足需求，不满足，2^(32-27) = 2^5 = 32, 32-5 = 27 。牢记IP个数的计算方式
+
+**Internet Gateway**
+- 有了public subnet ，并且在这个 subnet 中创建了 EC2，并且开启自动 assign public ip。EC2 有了 public ip，SG 开启 22端口，此时依然不能 ssh 到这台EC2
+- Internet Gateway 使 VPC 内的 EC2 在 Internet 上可以访问
+- IGW 是自动水平扩展切 HA的
+- 每个VPC只能挂载一个IGW，切一个 IGW只能挂给一个VPC，不同VPC需要使用不同的 IGW
+- IGW 对于拥有了 public IP 的EC2也相当于 NAT(专网访问外网，下面会详述)
+- 光有 IGW，依然不能让用户通过 Internet 访问 EC2，还必须配置 Route Table，将 0.0.0.0/0 指向 IGW
+  - 每个 Route Table 可以包含若干 subnet
+  - Route table 有优先级，越在上面的越先判断，所以每个 route table 第一行默认整个 VPC 的 CIDR 指向 local
+  - 如果使用了 Endpoint，那么第二行开始会是各个 endpoint 的指向
+  - 再下面是一些Internet相关的配置，对于 public subnet(通常实例包含 public ip)，将全部流量指向 IGW
+  - 对于 private subnet，如果需要从 VPC 访问 Internet ，则将全部流量指向 NAT
+
+**NAT Networking Access Translation**
+- NAT Instance
+  - 已经废弃，推荐使用 NAT Gateway
+  - 手动管理的 NAT，本质是一个 EC2，安装了 NAT 功能，可以使用 NAT AMI来部署
+  - 没有自动扩展和高可用，需要手动设置
+  - EC2必须放在 public subnet，并disable the source/destination check
+  - 需要手动设置 SG 
+  - 需要绑定 Elastic IP，并将 0.0.0.0/0 指向这个 IP
+- NAT Gateway
+  - 推荐使用，AWS 托管的 NAT，无需担心扩容问题
+  - 每个 AZ 需要一个的 NAT Gateway(根据创建的时候选择的子网而定，必须选择public subnet)
+  - 修改 private subnet 的 Route table 将 0.0.0.0/0 指向 NAT Gateway，从而让 private subnet 内的 EC2 可以访问 Internet( 反过来 Internet 依然不能访问 private subnet) 
+
+**DNS Resolution in VPC**
+- enableDnsSupport 
+  - VPC 开启这个选项，将会使用 AWS 的 DNS 解析域名
+- enableDnsHostname 
+  - VPC 开启这个选项，拥有 public IP 的 EC2 将会有一个 DNS
+- private zone in Route 53，必须同时开启上面两个设置
+
+**NACL Network Access Control List**
+- NACL 类似防火墙，可以指定规则，哪些端口哪些ip可以入站出站
+- NACL 作用于 sbunet 级别，多个 sbunet 可以共用一个 NACL，default NACL 开放全部流量
+- 对比 Security Group， 
+  - NACL 既可以 允许 也可以 拒绝
+  - SG 作用于实例级别，NACL 作用于 Subnet 级别
+  - SG 是 stateful 的，对于入站请求，一旦可以进入 SG，那么出站时无需校验就可通过，即使没有设置任何允许出站的流量
+  - SG 对于出站请求，一旦允许出站，那么外部的返回结果可以直接入站，即使没有允许这个 IP 入站的流量
+  - NACL 不同，他是 stateless 的，出站入站都要校验规则
+- NACL 的rule 有优先级，一旦满足就不进行后续的校验
+- SG 的规则没有优先级，必须满足任意一个
+
+**VPC peering Connection**
+- 帮助两个 VPC 互相访问
+- 两个 VPC 的 CIDR 不能重叠
+- 可以配置跨账号的 VPC 访问
+- 需要在 RouteTable 中配置，来自想要访问的 VPC 的流量指向 VPC peering
+- 同样另一个 VPC 也要做相同操作
+
+**VPC endpoint**
+- 在 AWS 网络内部访问服务，而不通过 Internet 访问，可以节约成本 
+- 有两种 endpoint
+  - Interface
+    - 大部分 AWS 服务使用这个，提供一个 ENI private ip作为访问的地址
+    - 需要在 SG 中放开这部分流量
+  - Gateway
+    - 只有 S3 和 DynamoDB 使用 Gateway
+    - 需要关联 Route Table，将访问 S3 和DDB 的流量指向 endpoint
+    - 默认的服务域名的 region 可能不正确，要访问正确的服务，需要指定 region
+
+**本地访问**
+- 要将本地网络和VPC打通，可以使用两种方式
+  - VPN
+    - 要使用 VPN 连接 本地到VPC 需要在本地使用 Customer Gateway(软件或硬件设备)，并在AWS配置这个 Customer Gateway 的 IP
+    - 在 AWS 配置 Virtual Private Gateway ，最后使用 site to site VPN 将 CPG 和 VPG 连接起来
+    - 建立连接的速度快，比较经济，安全，但是吞吐量受Internet的影响
+  - Direct Connect
+    - AWS 提供的专用网络
+    - 需要花至少一个月时间来部署，更稳定的网络吞吐量
+    - 必须使用 VPG
+    - 要同时连接多个VPC，需要使用 Direct Connect Gateway
+    - 两种连接类型：
+      - Dedicated Connections
+        - 物理上的连接，固定的带宽，1GBps、10GBps
+      - Hosted Connections
+        - 带宽可以变动
+    - 数据传输时是*非加密*的
+
+**Egress Only Internet Gateway**
+- 于 NAT 的作用相同
+- NAT 只能用于 IPv4
+- Egress 只能用于 IPv6
+
+**AWS PrivateLink (VPC Endpoints Services)**
+- 用于向其他 VPC 暴露本VPC内的服务
+- 更安全，扩展性更好，可以配置1000个
+- 问到向其他 VPC 暴露
+
+### Disaster Recovery
+- RPO Recovery Point Objective
+  - 多久备份一次，可能丢失数据的时间
+- PCO Recovery Time Objective
+  - 发生故障之后，多久可以恢复
+- DR 的手段
+  - Backup and restore
+    - 高 RPO 高 RTO
+    - 跟便宜
+  - Pilot Light
+    - 将一部分关键的系统在云上备份
+    - 较快的 RPO RTO
+  - Warm Standby
+    - 全部系统都在云上备份，但是以最小容量运行，DR时通过ASG扩展到生产环境的配置
+    - 更快的 RTO
+  - Hot Site/ Multi Site Approach
+    - 全部系统都在云上备份，以真实生产环境的容量运行
+    - 最快的 RPO RTO
+
+### DMS Data migration Service
+- DMS 帮助迁移数据库
+- SCT 帮助迁移到不同的数据库
+
+### AWS DataSync
+- Move large amount of data from on-premise to AWS
+- Can synchronize to: S3, EFS, FSx from Windows
+- Move data from your NAS or file system via NFS or SMB
+- Replication tasks can be scheduled
+- Leverage the DataSync agent to connect to your systems
+- NFS、SMB(windows) to AWS
+- EFS to EFS 跨区域复制
+
+### Transferring large amount of data in AWS
+- 关键条件为数据大小，网络带宽
+- 例如 需要迁移 200TB 100Mbps
+  - VPN
+    - steup 很快，但是传输需要 200 * 1000 * 1000 * 8(Mb) / 100(Mbps) = 16000000s = 185d
+  - Direct connect
+    - steup 很慢，假设 1Gbps
+    - 200 * 1000 * 8(Gb) / 1(Mbps) = 1600000s = 18.5d
+  - Snowball
+    - 需要 2-3天 steup
+    - 需要大约1周迁移数据
+    - 可以与DMS一同使用
+  - on-going replication/transfers
+    - 实时传输数据
+    - 
+
+### Cloud Formation
+- 用户快速部署产品到其他账号或region
+- 方便管理，分层，分app
+- 方便统计成本
+- Resources
+  - 需要创建的 AWS 资源
+- Parameters
+  - 可动态变化的参数，部署不同环境时可能会用到
+- Mappings
+  - 静态变量的 map，可以结合 parameters 查找不同环境使用的变量
+- Outputs
+  - 输出都创建了哪些资源
+- Conditionals
+  - 创建某些资源的条件
+- Metadata
+- References
+- Functions
+
+### ECS Elastic Container Service
+- AWS 托管的容器管理服务
+- 可以用来运行 Docker 容器
+- ECS Core：容器运行在 EC2 上
+- Fargate：serverless 的服务，running ECS task on AWS 提供的计算服务
+- EKS：使用 AWS 托管的 Kubernetes 来运行ECS，整体运行在 EC2上
+- ECR：ECS 管理 docker 镜像的仓库
+- ECS Cluster: 一组EC2
+- ECS Service：application， 一个 Cluster 可以运行多个 service
+- ECS task + definition：要实现 ECS Service 所需的任务，通常是运行 container，一个 service 可以由多个不同的 task 组成
+- ECS Task IAM Role：每个 task 的 IAM Role
+- ECS + ALB： ALB 与 ECS 集成时使用 portmapping 自动查找container 的端口，从而使用户可以在同一个 EC2 上部署多个相同的 task，并在他们之间做 Load Balance
+
+### 工作流
+- Step Functions
+  - 使用 JSON state machine，推荐使用
+- SWF simple workflow service
+  - 不推荐，除非需要外部输入信号，或者工作流有父子依赖关系
+
+### OpsWorks
+- 开源的多平台资源管理工具
+
+### Elastic Transcoder
+- 媒体格式转换工具
+
+### workSpaces
+- 在线VD
+
+### AppSync
+- 实时保存用户数据，包括 mobile 和 app，并将数据同步至不同的设备上
+- 使用 GraphQL
+- 集成了 lambda 和 DDB
+- 举例：微信的刷码登录网页端
