@@ -917,7 +917,7 @@ Patterns for ElastiCache
 - 想把 AWS 服务提供的域名映射为自定义的域名应该使用哪种recorde
 - CNAME:
   - Points URl to URL(app.mydomain.com => app.anotherdomain.com)
-  - 只支持子域名的映射，不支持根据名的映射(不支持 mydomain.com)
+  - 只支持子域名的映射，不支持根域名(不支持 mydomain.com)
 - Alias:
   - Points URl to URL(app.mydomain.com => app.anotherdomain.com)
   - 支持根域名和子域名
@@ -1983,6 +1983,7 @@ Database	specific workloads, usually with indexing and querying
 
 ### OpsWorks
 - 开源的多平台资源管理工具
+
 
 ### Elastic Transcoder
 - 媒体格式转换工具
