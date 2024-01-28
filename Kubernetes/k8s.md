@@ -27,3 +27,22 @@ CNCF 云原生计算基金会，对云原生的定义：
 - IaaS：这是为了想要建立自己的商业模式并进行自定义的客户，例如亚马逊的EC2、S3存储、Rackspace虚拟机等都是IaaS。
 - PaaS：工具和服务的集合，对于想用它来构建自己的应用程序或者想快速得将应用程序部署到生产环境而不必关心底层硬件的用户和开发者来说是特别有用的，比如Cloud Foundry、Google App Engine、Heroku等。
 - SaaS：终端用户可以直接使用的应用程序。这个就太多，我们生活中用到的很多软件都是SaaS服务，只要基于互联网来提供的服务基本都是SaaS服务，有的服务是免费的，比如Google Docs，还有更多的是根据我们购买的Plan和使用量付费，比如GitHub、各种云存储。
+
+
+## 核心组件
+Node 一个物理机 
+Pod 调度的最小单元，一般一个 pod 只运行一个任务
+sidecar 辅助容器，通常用来收集日志
+ip 动态ip，不稳定
+service (svc) 将 pod 封装为 service
+    内部 service
+    外部 svc
+        node:port （）
+        ingress 方便外部访问，可以配置域名，lb，ssl 等
+configMap 配置信息，明文
+secret 加密配置信息，Base64
+volumes vol 持久化存储
+deploy 多个 pod 组个在一起，可以定义副本数，方便管理
+statefulSet 有状态应用，数据库类应用不建议放入容器？
+
+
