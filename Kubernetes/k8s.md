@@ -37,7 +37,7 @@ ip 动态ip，不稳定
 service (svc) 将 pod 封装为 service
     内部 service
     外部 svc
-        node:port （）
+        node:port
         ingress 方便外部访问，可以配置域名，lb，ssl 等
 configMap 配置信息，明文
 secret 加密配置信息，Base64
